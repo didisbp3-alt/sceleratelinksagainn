@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Net.Http.Json;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using APIPSI16.Models;
@@ -20,6 +17,7 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
+        // Role-dispatched: admin → Index (all apps table), user → UserIndex (my jobs tracker)
         public async Task<IActionResult> Index()
         {
             if (!await ValidateSessionAsync())
@@ -29,15 +27,30 @@ namespace XcelerateLinks.Mvc.Controllers
             if (uid == null) return RedirectToAction("Login", "Account");
 
             var client = CreateAuthorizedClient();
+
+            if (IsAdmin())
+            {
+                // Admin: load all applications
+                var allResp = await client.GetAsync("api/jobapplications");
+                if (!allResp.IsSuccessStatusCode)
+                {
+                    ViewBag.Error = await SafeReadStringAsync(allResp) ?? "Unable to load applications.";
+                    return View(Array.Empty<JobApplication>());
+                }
+                var allApps = await allResp.Content.ReadFromJsonAsync<IEnumerable<JobApplication>>();
+                return View(allApps ?? Array.Empty<JobApplication>());
+            }
+
+            // Regular user: load their own applications
             var resp = await client.GetAsync($"api/jobapplications/user/{uid}");
             if (!resp.IsSuccessStatusCode)
             {
-                ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load job applications.";
-                return View(Array.Empty<JobApplication>());
+                ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load applications.";
+                return View("UserIndex", Array.Empty<JobApplication>());
             }
 
             var applications = await resp.Content.ReadFromJsonAsync<IEnumerable<JobApplication>>();
-            return View(applications ?? Array.Empty<JobApplication>());
+            return View("UserIndex", applications ?? Array.Empty<JobApplication>());
         }
 
         public async Task<IActionResult> Details(int id)
@@ -48,10 +61,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/jobapplications/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to load job application {Id}: {Status}", id, resp.StatusCode);
                 return RedirectToAction(nameof(Index));
-            }
 
             var application = await resp.Content.ReadFromJsonAsync<JobApplication>();
             if (application == null) return RedirectToAction(nameof(Index));
@@ -69,7 +79,21 @@ namespace XcelerateLinks.Mvc.Controllers
                 Application = new JobApplication { OpportunityId = opportunityId ?? 0 }
             };
 
-            model.Opportunities = await LoadOpportunitiesAsync();
+            if (opportunityId.HasValue)
+            {
+                // Pre-load the specific opportunity if known
+                var client = CreateAuthorizedClient();
+                var oppResp = await client.GetAsync($"api/opportunities/{opportunityId}");
+                if (oppResp.IsSuccessStatusCode)
+                {
+                    var opp = await oppResp.Content.ReadFromJsonAsync<Opportunity>();
+                    ViewBag.Opportunity = opp;
+                }
+            }
+            else
+            {
+                model.Opportunities = await LoadOpportunitiesAsync();
+            }
             return View(model);
         }
 
@@ -92,11 +116,12 @@ namespace XcelerateLinks.Mvc.Controllers
             var resp = await client.PostAsJsonAsync("api/jobapplications/apply", payload);
             if (!resp.IsSuccessStatusCode)
             {
-                ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to create application.");
+                ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to submit application.");
                 model.Opportunities = await LoadOpportunitiesAsync();
                 return View(model);
             }
 
+            TempData["SuccessMessage"] = "A sua candidatura foi submetida com sucesso!";
             return RedirectToAction(nameof(Index));
         }
 
@@ -109,10 +134,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/jobapplications/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to load job application for delete {Id}: {Status}", id, resp.StatusCode);
                 return RedirectToAction(nameof(Index));
-            }
 
             var application = await resp.Content.ReadFromJsonAsync<JobApplication>();
             if (application == null) return RedirectToAction(nameof(Index));
@@ -129,10 +151,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.DeleteAsync($"api/jobapplications/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to delete job application {Id}: {Status}", id, resp.StatusCode);
                 return RedirectToAction(nameof(Delete), new { id });
-            }
 
             return RedirectToAction(nameof(Index));
         }
@@ -142,11 +161,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync("api/opportunities");
             if (!resp.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Unable to load opportunities for application form: {Status}", resp.StatusCode);
                 return Array.Empty<Opportunity>();
-            }
-
             return await resp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>() ?? Array.Empty<Opportunity>();
         }
 

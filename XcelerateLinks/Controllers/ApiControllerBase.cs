@@ -35,6 +35,8 @@ namespace XcelerateLinks.Mvc.Controllers
             return claim != null && int.TryParse(claim.Value, out var id) ? id : null;
         }
 
+        protected bool IsAdmin() => User.FindFirst(ClaimTypes.Role)?.Value == "0";
+
         protected static async Task<string?> SafeReadStringAsync(HttpResponseMessage resp)
         {
             try

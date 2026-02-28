@@ -16,8 +16,8 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
-        // ADMIN index - table view with management actions
-        public async Task<IActionResult> Index()
+        // Role-dispatched: admin → Index (table), user → UserIndex (job search)
+        public async Task<IActionResult> Index(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
@@ -27,30 +27,16 @@ namespace XcelerateLinks.Mvc.Controllers
             if (!resp.IsSuccessStatusCode)
             {
                 ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load opportunities.";
-                return View(Array.Empty<Opportunity>());
-            }
-
-            var opportunities = await resp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>();
-            return View(opportunities ?? Array.Empty<Opportunity>());
-        }
-
-        // USER-FACING job search page
-        public async Task<IActionResult> Browse(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
-        {
-            if (!await ValidateSessionAsync())
-                return RedirectToAction("Login", "Account");
-
-            var client = CreateAuthorizedClient();
-            var resp = await client.GetAsync("api/opportunities");
-            if (!resp.IsSuccessStatusCode)
-            {
-                ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load opportunities.";
-                return View(Array.Empty<Opportunity>());
+                return View(IsAdmin() ? "Index" : "UserIndex", Array.Empty<Opportunity>());
             }
 
             IEnumerable<Opportunity> opportunities = await resp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>()
                                                       ?? Array.Empty<Opportunity>();
 
+            if (IsAdmin())
+                return View(opportunities);
+
+            // User: apply filters
             if (!string.IsNullOrWhiteSpace(q))
                 opportunities = opportunities.Where(o =>
                     (o.Title ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
@@ -71,8 +57,12 @@ namespace XcelerateLinks.Mvc.Controllers
             ViewBag.EmploymentType = employmentType;
             ViewBag.RemoteOption = remoteOption;
 
-            return View(opportunities);
+            return View("UserIndex", opportunities);
         }
+
+        // Keep Browse as alias (used in existing nav links)
+        public async Task<IActionResult> Browse(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
+            => await Index(q, location, employmentType, remoteOption);
 
         public async Task<IActionResult> Details(int id)
         {
@@ -82,10 +72,10 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/opportunities/{id}");
             if (!resp.IsSuccessStatusCode)
-                return RedirectToAction(nameof(Browse));
+                return RedirectToAction(nameof(Index));
 
             var opportunity = await resp.Content.ReadFromJsonAsync<Opportunity>();
-            if (opportunity == null) return RedirectToAction(nameof(Browse));
+            if (opportunity == null) return RedirectToAction(nameof(Index));
             return View(opportunity);
         }
 

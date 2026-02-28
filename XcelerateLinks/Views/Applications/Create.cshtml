@@ -1,43 +1,112 @@
 @model XcelerateLinks.Mvc.Controllers.ApplicationsController.JobApplicationCreateViewModel
+@using System.Security.Claims
 @{
-    ViewData["Title"] = "Nova candidatura";
+    ViewData["Title"] = "Candidatar-me";
+    var opp = ViewBag.Opportunity as APIPSI16.Models.Opportunity;
 }
 
-<h2 class="mb-3">Nova candidatura</h2>
+<style>
+    .apply-container { max-width: 620px; margin: 0 auto; padding: 2rem 0; }
+    .apply-header {
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px; padding: 1.5rem; margin-bottom: 1.5rem;
+        display: flex; gap: 1rem; align-items: flex-start;
+    }
+    .apply-logo {
+        width: 56px; height: 56px; border-radius: 12px; flex-shrink: 0;
+        background: linear-gradient(135deg,rgba(0,82,204,0.25),rgba(0,221,85,0.1));
+        display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+    }
+    .apply-job-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .apply-company { font-size: 0.88rem; color: var(--dark-text-muted,#a8b2c1); }
 
-<form asp-action="Create" method="post">
-    @Html.AntiForgeryToken()
+    .apply-form-card {
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px; padding: 1.75rem;
+    }
+    .apply-form-card h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 1.25rem; }
 
-    <div asp-validation-summary="All" class="text-danger mb-3"></div>
+    .form-group-styled label { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--dark-text-muted,#a8b2c1); }
+    .form-group-styled .form-control,
+    .form-group-styled .form-select {
+        background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.12); color: inherit;
+        border-radius: 10px;
+    }
+    .form-group-styled .form-control:focus,
+    .form-group-styled .form-select:focus { background: rgba(255,255,255,0.08); border-color: #0052CC; box-shadow: none; color: inherit; }
+    .form-group-styled .form-select option { background: #141829; }
 
-    <div class="mb-3">
-        <label asp-for="Application.Name" class="form-label">Nome</label>
-        <input asp-for="Application.Name" class="form-control" />
-        <span asp-validation-for="Application.Name" class="text-danger"></span>
-    </div>
+    .btn-submit-app {
+        background: #0052CC; color: #fff; border: none; border-radius: 30px;
+        padding: 0.7rem 2.5rem; font-size: 0.95rem; font-weight: 600; transition: background 0.15s;
+    }
+    .btn-submit-app:hover { background: #0040A0; }
+    .btn-cancel-app {
+        background: transparent; border: 1px solid rgba(255,255,255,0.15); color: inherit;
+        border-radius: 30px; padding: 0.7rem 2rem; font-size: 0.95rem; text-decoration: none; display: inline-block;
+    }
+    .btn-cancel-app:hover { background: rgba(255,255,255,0.05); color: inherit; }
+</style>
 
-    <div class="mb-3">
-        <label asp-for="Application.OpportunityId" class="form-label">Oportunidade</label>
-        <select asp-for="Application.OpportunityId" class="form-select">
-            <option value="">Selecione</option>
-            @foreach (var opportunity in Model.Opportunities)
+<div class="apply-container">
+    <a asp-controller="Opportunities" asp-action="Index" class="btn btn-sm btn-outline-secondary mb-4">← Voltar às oportunidades</a>
+
+    @if (opp != null)
+    {
+        <div class="apply-header">
+            <div class="apply-logo">🏢</div>
+            <div>
+                <div class="apply-job-title">@(opp.Title ?? "Oportunidade")</div>
+                <div class="apply-company">@(opp.Company?.Name ?? (opp.CompanyId.HasValue ? $"Empresa #{opp.CompanyId}" : ""))</div>
+                @if (!string.IsNullOrEmpty(opp.Location))
+                {
+                    <div class="apply-company">📍 @opp.Location</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="apply-form-card">
+        <h4>✏️ Completa a tua candidatura</h4>
+
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+            @if (opp != null)
             {
-                <option value="@opportunity.Id">@opportunity.Title</option>
+                <input type="hidden" asp-for="Application.OpportunityId" value="@opp.Id" />
             }
-        </select>
-        <span asp-validation-for="Application.OpportunityId" class="text-danger"></span>
-    </div>
+            else
+            {
+                <div class="mb-3 form-group-styled">
+                    <label asp-for="Application.OpportunityId">Oportunidade</label>
+                    <select asp-for="Application.OpportunityId" class="form-select">
+                        <option value="">Seleciona uma oportunidade...</option>
+                        @foreach (var opportunity in Model.Opportunities)
+                        {
+                            <option value="@opportunity.Id">@opportunity.Title</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Application.OpportunityId" class="text-danger"></span>
+                </div>
+            }
 
-    <div class="mb-3">
-        <label asp-for="Application.UserId" class="form-label">Utilizador (ID)</label>
-        <input asp-for="Application.UserId" class="form-control" />
-        <span asp-validation-for="Application.UserId" class="text-danger"></span>
-        <div class="form-text">Deixe vazio para usar o utilizador autenticado.</div>
-    </div>
+            <div class="mb-4 form-group-styled">
+                <label asp-for="Application.Name">Nome na candidatura (opcional)</label>
+                <input asp-for="Application.Name" class="form-control"
+                       placeholder="O nome que queres usar nesta candidatura..." />
+                <small class="text-muted">Se deixares em branco, será usado o teu nome de perfil.</small>
+                <span asp-validation-for="Application.Name" class="text-danger"></span>
+            </div>
 
-    <button type="submit" class="btn btn-primary">Guardar</button>
-    <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
-</form>
+            <div class="d-flex gap-3 align-items-center">
+                <button type="submit" class="btn-submit-app">Submeter candidatura</button>
+                <a asp-controller="Opportunities" asp-action="Index" class="btn-cancel-app">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

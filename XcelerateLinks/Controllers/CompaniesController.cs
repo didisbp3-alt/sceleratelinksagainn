@@ -16,7 +16,8 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
-        public async Task<IActionResult> Index()
+        // Role-dispatched: admin → Index (table), user → UserIndex (company explorer)
+        public async Task<IActionResult> Index(string? search = null)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
@@ -26,11 +27,24 @@ namespace XcelerateLinks.Mvc.Controllers
             if (!resp.IsSuccessStatusCode)
             {
                 ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load companies.";
-                return View(Array.Empty<Company>());
+                return View(IsAdmin() ? "Index" : "UserIndex", Array.Empty<Company>());
             }
 
-            var companies = await resp.Content.ReadFromJsonAsync<IEnumerable<Company>>();
-            return View(companies ?? Array.Empty<Company>());
+            IEnumerable<Company> companies = await resp.Content.ReadFromJsonAsync<IEnumerable<Company>>()
+                                              ?? Array.Empty<Company>();
+
+            if (IsAdmin())
+                return View(companies);
+
+            // User: optionally filter by search
+            if (!string.IsNullOrWhiteSpace(search))
+                companies = companies.Where(c =>
+                    (c.Name ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Industry ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (c.Location ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
+
+            ViewBag.Search = search;
+            return View("UserIndex", companies);
         }
 
         public async Task<IActionResult> Details(int id)
@@ -41,12 +55,19 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/companies/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var company = await resp.Content.ReadFromJsonAsync<Company>();
             if (company == null) return RedirectToAction(nameof(Index));
+
+            // Load company's open opportunities to show on page
+            var oppsResp = await client.GetAsync("api/opportunities");
+            if (oppsResp.IsSuccessStatusCode)
+            {
+                var allOpps = await oppsResp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>();
+                ViewBag.CompanyOpportunities = allOpps?.Where(o => o.CompanyId == id).ToList();
+            }
+
             return View(company);
         }
 
@@ -55,7 +76,6 @@ namespace XcelerateLinks.Mvc.Controllers
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
-
             return View(new Company());
         }
 
@@ -88,9 +108,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/companies/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var company = await resp.Content.ReadFromJsonAsync<Company>();
             if (company == null) return RedirectToAction(nameof(Index));
@@ -127,9 +145,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/companies/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var company = await resp.Content.ReadFromJsonAsync<Company>();
             if (company == null) return RedirectToAction(nameof(Index));
@@ -146,9 +162,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.DeleteAsync($"api/companies/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Delete), new { id });
-            }
 
             return RedirectToAction(nameof(Index));
         }

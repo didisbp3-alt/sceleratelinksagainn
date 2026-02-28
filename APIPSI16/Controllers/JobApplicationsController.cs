@@ -207,6 +207,53 @@ namespace APIPSI16.Controllers
             return Ok(pipeline);
         }
 
+        // GET: api/jobapplications (admin: all, user: their own)
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var uid = GetUserId();
+            if (uid == null) return Unauthorized();
+
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (userRole != "0") return Forbid();
+
+            var list = await _db.JobApplications
+                .Include(a => a.Opportunity)
+                .Include(a => a.User)
+                .Select(a => new
+                {
+                    a.JobApplicationId,
+                    a.OpportunityId,
+                    OpportunityTitle = a.Opportunity.Title,
+                    a.UserId,
+                    UserName = a.User.Name,
+                    a.Status,
+                    a.AppliedAt,
+                    a.UpdatedAt,
+                    a.Name
+                })
+                .ToListAsync();
+
+            return Ok(list);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var uid = GetUserId();
+            if (uid == null) return Unauthorized();
+
+            var app = await _db.JobApplications.FindAsync(id);
+            if (app == null) return NotFound();
+
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (userRole != "0" && app.UserId != uid.Value) return Forbid();
+
+            _db.JobApplications.Remove(app);
+            await _db.SaveChangesAsync();
+            return NoContent();
+        }
+
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> ForUser(int userId)
         {

@@ -16,11 +16,14 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
-        // ADMIN index - table view
+        // Role-dispatched: admin → Index (table), user → Messages (React chat)
         public async Task<IActionResult> Index()
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
+
+            if (!IsAdmin())
+                return RedirectToAction(nameof(Messages));
 
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync("api/chat");
@@ -34,10 +37,10 @@ namespace XcelerateLinks.Mvc.Controllers
             return View(chats ?? Array.Empty<Chat>());
         }
 
-        // USER-FACING: full messaging page (conversations list + chat window with React)
-        public async Task<IActionResult> Messages(int? chatId = null)
+        // USER-FACING: full messaging page (React + SignalR)
+        public IActionResult Messages(int? chatId = null)
         {
-            if (!await ValidateSessionAsync())
+            if (!User.Identity?.IsAuthenticated ?? true)
                 return RedirectToAction("Login", "Account");
 
             ViewBag.InitialChatId = chatId;
@@ -61,9 +64,9 @@ namespace XcelerateLinks.Mvc.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Create()
+        public IActionResult Create()
         {
-            if (!await ValidateSessionAsync())
+            if (!User.Identity?.IsAuthenticated ?? true)
                 return RedirectToAction("Login", "Account");
 
             var userId = GetCurrentUserId();
