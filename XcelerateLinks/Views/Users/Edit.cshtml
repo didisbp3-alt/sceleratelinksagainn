@@ -53,13 +53,39 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label asp-for="Nationality" class="form-label">Nationality</label>
-                            <input asp-for="Nationality" class="form-control" type="number" />
+                            <select asp-for="Nationality" class="form-select searchable-select" id="nationalitySelect">
+                                <option value="">— Select nationality —</option>
+                                @foreach (var n in (ViewBag.Nationalities as IEnumerable<XcelerateLinks.Mvc.Controllers.UsersController.LookupItem> ?? Enumerable.Empty<XcelerateLinks.Mvc.Controllers.UsersController.LookupItem>()))
+                                {
+                                    @if (Model.Nationality == n.Id)
+                                    {
+                                        <option value="@n.Id" selected>@n.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@n.Id">@n.Name</option>
+                                    }
+                                }
+                            </select>
                             <span asp-validation-for="Nationality" class="text-danger"></span>
                         </div>
 
                         <div class="mb-3">
                             <label asp-for="JobPreference" class="form-label">Job Preference</label>
-                            <input asp-for="JobPreference" class="form-control" type="number" />
+                            <select asp-for="JobPreference" class="form-select searchable-select" id="jobPrefSelect">
+                                <option value="">— Select job role —</option>
+                                @foreach (var j in (ViewBag.JobRoles as IEnumerable<XcelerateLinks.Mvc.Controllers.UsersController.LookupItem> ?? Enumerable.Empty<XcelerateLinks.Mvc.Controllers.UsersController.LookupItem>()))
+                                {
+                                    @if (Model.JobPreference == j.Id)
+                                    {
+                                        <option value="@j.Id" selected>@j.Name</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@j.Id">@j.Name</option>
+                                    }
+                                }
+                            </select>
                             <span asp-validation-for="JobPreference" class="text-danger"></span>
                         </div>
 
@@ -254,6 +280,30 @@
                 msgDiv.innerHTML = '<div class="alert alert-danger">Upload failed. Please try again.</div>';
             }
         });
+    </script>
+    <script>
+    // Searchable selects – add live filter on type
+    document.querySelectorAll('.searchable-select').forEach(function(sel) {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        sel.parentNode.insertBefore(wrapper, sel);
+        wrapper.appendChild(sel);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Search...';
+        input.className = 'form-control form-control-sm mb-1';
+        input.style.cssText = 'background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.15);color:inherit;';
+        wrapper.insertBefore(input, sel);
+
+        input.addEventListener('input', function() {
+            const q = this.value.toLowerCase();
+            Array.from(sel.options).forEach(function(opt) {
+                if (!opt.value) return; // keep placeholder
+                opt.style.display = opt.text.toLowerCase().includes(q) ? '' : 'none';
+            });
+        });
+    });
     </script>
 }
 

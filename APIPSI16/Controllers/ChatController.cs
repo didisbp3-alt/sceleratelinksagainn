@@ -207,6 +207,45 @@ namespace APIPSI16.Controllers
             return CreatedAtAction(nameof(GetChat), new { id = chat.ChatId }, chat);
         }
 
+        // POST: api/Chat/with-participants
+        // Creates a chat and adds all participants atomically (creator + others)
+        [HttpPost("with-participants")]
+        public async Task<IActionResult> CreateChatWithParticipants([FromBody] CreateChatWithParticipantsDto dto)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue) return Unauthorized();
+
+            if (dto.ParticipantIds == null || !dto.ParticipantIds.Any())
+                return BadRequest("ParticipantIds is required.");
+
+            // Always include creator
+            if (!dto.ParticipantIds.Contains(currentUserId.Value))
+                dto.ParticipantIds.Insert(0, currentUserId.Value);
+
+            var chat = new Chat
+            {
+                CreatedByUserId = currentUserId.Value,
+                CreatedAt = DateTime.UtcNow,
+                Type = dto.ChatName ?? (dto.ParticipantIds.Count == 2 ? "Direct" : "Group")
+            };
+
+            _context.Chats.Add(chat);
+            await _context.SaveChangesAsync(); // generates ChatId
+
+            foreach (var pid in dto.ParticipantIds)
+            {
+                _context.ChatUsers.Add(new ChatUser
+                {
+                    ChatId = chat.ChatId,
+                    UserId = pid,
+                    JoinedAt = DateTime.UtcNow
+                });
+            }
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetChat), new { id = chat.ChatId }, chat);
+        }
+
         // DELETE: api/Chat/5
         // Only admins can delete chats
         [HttpDelete("{id}")]

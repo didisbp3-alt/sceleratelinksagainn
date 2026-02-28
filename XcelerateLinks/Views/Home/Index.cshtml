@@ -35,60 +35,67 @@
 </section>
 
 <!-- STATS SECTION -->
-<section class="container mt-5">
+@{
+    dynamic stats = ViewBag.Stats;
+    var oppCount = stats != null ? (int)stats.OppCount : 0;
+    var userCount = stats != null ? (int)stats.UserCount : 0;
+    var companyCount = stats != null ? (int)stats.CompanyCount : 0;
+    var connCount = stats != null ? (int)stats.ActiveConnections : 0;
+}
+<section class="container mt-5 scroll-reveal">
     <div class="stats-section">
-        <div class="stat-card">
-            <div class="stat-number">5.000+</div>
+        <div class="stat-card scroll-reveal">
+            <div class="stat-number" data-target="@oppCount">@oppCount</div>
             <div class="stat-label">Oportunidades</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number">10.000+</div>
+        <div class="stat-card scroll-reveal">
+            <div class="stat-number" data-target="@userCount">@userCount</div>
             <div class="stat-label">Utilizadores Ativos</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number">500+</div>
+        <div class="stat-card scroll-reveal">
+            <div class="stat-number" data-target="@companyCount">@companyCount</div>
             <div class="stat-label">Empresas</div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number">95%</div>
-            <div class="stat-label">Taxa de Satisfação</div>
+        <div class="stat-card scroll-reveal">
+            <div class="stat-number" data-target="@connCount">@connCount</div>
+            <div class="stat-label">Ligações Ativas</div>
         </div>
     </div>
 </section>
 
 <!-- FEATURES SECTION -->
-<section class="features-section">
+<section class="features-section scroll-reveal">
     <div class="container">
         <h2 class="section-title">Por Que Escolher Xcelerate Links?</h2>
         <p class="section-subtitle">Tudo o que você precisa para crescer profissionalmente em um único lugar.</p>
 
         <div class="features-grid">
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">🎯</div>
                 <h3>Oportunidades Personalizadas</h3>
                 <p>Receba recomendações de oportunidades baseadas no seu perfil e preferências.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">💬</div>
                 <h3>Chat Integrado</h3>
                 <p>Comunique-se diretamente com recrutadores e candidatos em tempo real.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">📊</div>
                 <h3>Dashboard Completo</h3>
                 <p>Acompanhe suas candidaturas e gerencie oportunidades com facilidade.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">🔐</div>
                 <h3>Segurança Garantida</h3>
                 <p>Seus dados estão protegidos com as melhores práticas de segurança.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">🌍</div>
                 <h3>Alcance Global</h3>
                 <p>Acesse oportunidades de empresas do mundo todo.</p>
             </div>
-            <div class="feature-card">
+            <div class="feature-card scroll-reveal">
                 <div class="feature-icon">⚡</div>
                 <h3>Rápido e Eficiente</h3>
                 <p>Processo de candidatura simplificado e resposta rápida dos recrutadores.</p>

@@ -11,6 +11,7 @@
     height: 220px;
     position: relative;
     background: linear-gradient(90deg, rgba(0,82,204,0.06), rgba(0,221,85,0.03));
+    border-bottom: 2px solid rgba(255,255,255,0.08);
 }
 
 .banner-img-wrapper {
@@ -130,10 +131,12 @@
     }
 
 .profile-actions {
-    margin-left: 1rem;
+    margin-left: auto;
+    margin-top: 1.5rem;
     display: flex;
     gap: 0.6rem;
-    align-items: center;
+    align-items: flex-end;
+    align-self: flex-end;
 }
 
 .btn {
@@ -150,7 +153,13 @@
 
 .btn-outline {
     background: transparent;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    color: #e8ecf5;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+}
+.btn-outline:hover {
+    border-color: rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.06);
     color: #fff;
 }
 

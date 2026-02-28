@@ -1,4 +1,5 @@
 @using System.Security.Claims
+@using XcelerateLinks.Mvc.Controllers
 @{
     ViewData["Title"] = "Tornar-me Empregador";
 }
@@ -59,6 +60,24 @@
             <form asp-action="RequestEmployer" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
 
+                <!-- Company selection -->
+                <div class="form-group-styled mb-4">
+                    <label style="font-size:0.85rem;font-weight:600;color:var(--dark-text-muted,#a8b2c1);display:block;margin-bottom:0.5rem;">Empresa (opcional)</label>
+                    <div style="position:relative;">
+                        <input type="text" id="companySearch" placeholder="Pesquisar empresa..." autocomplete="off"
+                               style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:0.55rem 0.9rem;color:inherit;font-size:0.9rem;outline:none;margin-bottom:0.4rem;" />
+                        <select name="companyId" id="companySelect"
+                                style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:0.55rem 0.85rem;color:inherit;font-size:0.9rem;outline:none;max-height:160px;overflow-y:auto;">
+                            <option value="">— Sem empresa associada —</option>
+                            @foreach (var c in (ViewBag.Companies as IEnumerable<UsersController.CompanyInfo> ?? Enumerable.Empty<UsersController.CompanyInfo>()))
+                            {
+                                <option value="@c.CompanyId">@c.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <small style="font-size:0.75rem;color:var(--dark-text-muted,#a8b2c1);">Seleciona a empresa à qual te queres associar.</small>
+                </div>
+
                 <div class="upload-area" onclick="document.getElementById('docFile').click()">
                     <input type="file" id="docFile" name="document" accept=".pdf,.jpg,.jpeg,.png" onchange="showPreview(this)" />
                     <div class="upload-icon">📄</div>
@@ -82,5 +101,17 @@ function showPreview(input) {
     if (input.files && input.files[0]) {
         preview.textContent = '✓ ' + input.files[0].name;
     }
+}
+// Company search filter
+const compSearch = document.getElementById('companySearch');
+const compSelect = document.getElementById('companySelect');
+if (compSearch && compSelect) {
+    compSearch.addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        Array.from(compSelect.options).forEach(function(opt) {
+            if (!opt.value) return;
+            opt.style.display = opt.text.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
 }
 </script>

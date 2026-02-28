@@ -1138,68 +1138,6 @@ body.light-theme .footer-bottom {
     100% { background-position: 400px 0; }
 }
 
-/* Page entrance animations */
-.container > h1:first-child,
-.container > h2:first-child {
-    animation: slideDown 0.3s ease both;
-}
-
-/* Card animations – staggered via nth-child */
-.person-card { animation: fadeUp 0.4s ease both; }
-.person-card:nth-child(2)  { animation-delay: 0.05s; }
-.person-card:nth-child(3)  { animation-delay: 0.10s; }
-.person-card:nth-child(4)  { animation-delay: 0.15s; }
-.person-card:nth-child(5)  { animation-delay: 0.20s; }
-.person-card:nth-child(6)  { animation-delay: 0.25s; }
-.person-card:nth-child(n+7) { animation-delay: 0.28s; }
-
-.job-card { animation: fadeUp 0.4s ease both; }
-.job-card:nth-child(2)  { animation-delay: 0.05s; }
-.job-card:nth-child(3)  { animation-delay: 0.10s; }
-.job-card:nth-child(4)  { animation-delay: 0.15s; }
-.job-card:nth-child(n+5) { animation-delay: 0.18s; }
-
-.app-card { animation: fadeUp 0.4s ease both; }
-.app-card:nth-child(2) { animation-delay: 0.06s; }
-.app-card:nth-child(3) { animation-delay: 0.12s; }
-.app-card:nth-child(n+4) { animation-delay: 0.16s; }
-
-/* Hero sections */
-.jobs-hero,
-.network-hero,
-.myjobs-hero,
-.companies-hero,
-.profile-banner {
-    animation: fadeUp 0.4s ease both;
-}
-
-/* Manage / form cards */
-.manage-header,
-.opp-form-card,
-.apply-form-card,
-.manage-section,
-.newchat-card,
-.employer-req-card {
-    animation: fadeUp 0.4s ease both;
-}
-
-/* Pipeline columns */
-.pipeline-column { animation: scaleIn 0.35s ease both; }
-.pipeline-column:nth-child(2) { animation-delay: 0.05s; }
-.pipeline-column:nth-child(3) { animation-delay: 0.10s; }
-.pipeline-column:nth-child(4) { animation-delay: 0.15s; }
-.pipeline-column:nth-child(n+5) { animation-delay: 0.18s; }
-
-/* Chat widget entrance */
-#chat-widget-root .cw-panel { animation: scaleIn 0.25s ease both; transform-origin: bottom right; }
-#chat-widget-root .cw-bubble { animation: scaleIn 0.3s ease both 0.5s; }
-
-/* Header entrance */
-.site-header { animation: slideDown 0.3s ease both; }
-
-/* Stat numbers count-up feel via scale */
-.stat-number { animation: scaleIn 0.4s ease both 0.2s; display: inline-block; }
-
 /* Hover pulse on action buttons */
 .btn-apply:hover,
 .btn-apply-lg:hover,
@@ -1244,5 +1182,36 @@ body.light-theme .footer-bottom {
 /* Picker item selected animation */
 .picker-item.selected { transition: background 0.15s; }
 
-/* Page container fade-in */
-main > .container { animation: fadeUp 0.4s ease both; }
+/* Inline animations for elements that should animate on page load (not scroll) */
+.apply-form-card,
+.newchat-card,
+.employer-req-card,
+.apply-header {
+    animation: fadeUp 0.4s ease both;
+}
+#chat-widget-root .cw-panel { animation: scaleIn 0.25s ease both; transform-origin: bottom right; }
+#chat-widget-root .cw-bubble { animation: scaleIn 0.3s ease both 0.5s; }
+/* ====================================
+   SCROLL-REVEAL (IntersectionObserver)
+==================================== */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.scroll-reveal.revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+.scroll-reveal.reveal-scale {
+    transform: scale(0.94);
+}
+.scroll-reveal.reveal-scale.revealed {
+    transform: scale(1);
+}
+
+/* Counter animation */
+.stat-number.counting {
+    display: inline-block;
+}
+

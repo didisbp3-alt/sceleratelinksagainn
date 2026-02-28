@@ -130,7 +130,35 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var user = await resp.Content.ReadFromJsonAsync<UserDTO>();
             if (user == null) return RedirectToAction(nameof(Index));
+
+            // Load lookup lists for dropdowns
+            var natResp = await client.GetAsync("api/users/lookups/nationalities");
+            if (natResp.IsSuccessStatusCode)
+                ViewBag.Nationalities = await natResp.Content.ReadFromJsonAsync<IEnumerable<LookupItem>>() ?? Array.Empty<LookupItem>();
+            else
+                ViewBag.Nationalities = Array.Empty<LookupItem>();
+
+            var jrResp = await client.GetAsync("api/users/lookups/jobroles");
+            if (jrResp.IsSuccessStatusCode)
+                ViewBag.JobRoles = await jrResp.Content.ReadFromJsonAsync<IEnumerable<LookupItem>>() ?? Array.Empty<LookupItem>();
+            else
+                ViewBag.JobRoles = Array.Empty<LookupItem>();
+
             return View(user);
+        }
+
+        public class LookupItem
+        {
+            public int? NationalityId { get; set; }
+            public int? JobRoleId { get; set; }
+            public string? Name { get; set; }
+            public int Id => NationalityId ?? JobRoleId ?? 0;
+        }
+
+        public class CompanyInfo
+        {
+            public int CompanyId { get; set; }
+            public string? Name { get; set; }
         }
 
         // EDIT USER POST
@@ -160,13 +188,26 @@ namespace XcelerateLinks.Mvc.Controllers
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var compResp = await client.GetAsync("api/companies");
+            if (compResp.IsSuccessStatusCode)
+            {
+                var companies = await compResp.Content.ReadFromJsonAsync<IEnumerable<CompanyInfo>>()
+                    ?? Array.Empty<CompanyInfo>();
+                ViewBag.Companies = companies;
+            }
+            else
+            {
+                ViewBag.Companies = Array.Empty<CompanyInfo>();
+            }
             return View();
         }
 
         // POST: submit employer request with optional document
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RequestEmployer(IFormFile? document)
+        public async Task<IActionResult> RequestEmployer(IFormFile? document, int? companyId = null)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
@@ -179,11 +220,16 @@ namespace XcelerateLinks.Mvc.Controllers
                 using var form = new MultipartFormDataContent();
                 var stream = document.OpenReadStream();
                 form.Add(new StreamContent(stream), "document", document.FileName);
+                if (companyId.HasValue)
+                    form.Add(new StringContent(companyId.Value.ToString()), "companyId");
                 resp = await client.PostAsync("api/users/me/request-employer", form);
             }
             else
             {
-                resp = await client.PostAsync("api/users/me/request-employer", null);
+                var url = companyId.HasValue
+                    ? $"api/users/me/request-employer?companyId={companyId.Value}"
+                    : "api/users/me/request-employer";
+                resp = await client.PostAsync(url, null);
             }
 
             if (!resp.IsSuccessStatusCode)

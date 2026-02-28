@@ -115,6 +115,55 @@ namespace APIPSI16.Controllers
             return Ok(list);
         }
 
+        // GET: api/connections/my-with-users – accepted connections with user details (single JOIN query)
+        [HttpGet("my-with-users")]
+        public async Task<IActionResult> MyConnectionsWithUsers()
+        {
+            var uid = GetUserId();
+            if (uid == null) return Unauthorized();
+
+            // Single query with joins to avoid N+1
+            var connections = await _db.Connections
+                .Where(c => (c.RequesterUserId == uid || c.AddresseeUserId == uid) && c.Status == 1)
+                .Join(_db.Users, c => c.RequesterUserId == uid ? c.AddresseeUserId : c.RequesterUserId,
+                    u => u.UserId, (c, u) => new
+                    {
+                        c.ConnectionId,
+                        c.RequesterUserId,
+                        c.AddresseeUserId,
+                        c.Status,
+                        c.CreatedAt,
+                        c.AcceptedAt,
+                        OtherUser = new { u.UserId, u.Name, u.ProfileBio, u.ProfilePictureUrl, u.Role }
+                    })
+                .ToListAsync();
+
+            return Ok(connections);
+        }
+
+        // GET: api/connections/pending – pending incoming requests for me (single JOIN query)
+        [HttpGet("pending")]
+        public async Task<IActionResult> PendingRequests()
+        {
+            var uid = GetUserId();
+            if (uid == null) return Unauthorized();
+
+            var pending = await _db.Connections
+                .Where(c => c.AddresseeUserId == uid && c.Status == 0)
+                .Join(_db.Users, c => c.RequesterUserId, u => u.UserId, (c, u) => new
+                {
+                    c.ConnectionId,
+                    c.RequesterUserId,
+                    c.AddresseeUserId,
+                    c.Status,
+                    c.CreatedAt,
+                    RequesterUser = new { u.UserId, u.Name, u.ProfileBio, u.ProfilePictureUrl, u.Role }
+                })
+                .ToListAsync();
+
+            return Ok(pending);
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

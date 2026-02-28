@@ -113,35 +113,29 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var client = CreateAuthorizedClient();
 
-            // Create the chat
-            var chat = new APIPSI16.Models.Chat
+            // Create chat with all participants atomically
+            var payload = new
             {
-                CreatedByUserId = userId.Value,
-                CreatedAt = DateTime.UtcNow,
-                Type = chatName ?? (participantIds.Count == 2 ? "Direct" : "Group")
+                ParticipantIds = participantIds,
+                ChatName = chatName
             };
 
-            var createResp = await client.PostAsJsonAsync("api/chat", chat);
+            var createResp = await client.PostAsJsonAsync("api/chat/with-participants", payload);
             if (!createResp.IsSuccessStatusCode)
             {
-                ModelState.AddModelError("", "Não foi possível criar a conversa.");
+                ViewBag.Error = await SafeReadStringAsync(createResp) ?? "Não foi possível criar a conversa.";
+                var client2 = CreateAuthorizedClient();
+                var resp2 = await client2.GetAsync("api/users/network");
+                ViewBag.Users = resp2.IsSuccessStatusCode
+                    ? (await resp2.Content.ReadFromJsonAsync<IEnumerable<APIPSI16.Models.DTOs.UserDTO>>() ?? Array.Empty<APIPSI16.Models.DTOs.UserDTO>())
+                        .Where(u => u.UserId != userId).ToArray()
+                    : Array.Empty<APIPSI16.Models.DTOs.UserDTO>();
+                ViewBag.PreselectedUserId = (int?)null;
                 return View();
             }
 
             var created = await createResp.Content.ReadFromJsonAsync<APIPSI16.Models.Chat>();
             if (created == null) return RedirectToAction(nameof(Messages));
-
-            // Add all participants
-            foreach (var pid in participantIds)
-            {
-                var cu = new APIPSI16.Models.ChatUser
-                {
-                    ChatId = created.ChatId,
-                    UserId = pid,
-                    JoinedAt = DateTime.UtcNow
-                };
-                await client.PostAsJsonAsync("api/chatusers", cu);
-            }
 
             return RedirectToAction(nameof(Messages), new { chatId = created.ChatId });
         }

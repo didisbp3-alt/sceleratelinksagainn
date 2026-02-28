@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
@@ -19,9 +20,29 @@ namespace XcelerateLinks.Mvc.Controllers
             _httpFactory = httpFactory;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
+            // Load real-time stats from the API (no auth needed)
+            try
+            {
+                var client = _httpFactory.CreateClient("Api");
+                var resp = await client.GetAsync("api/users/stats");
+                if (resp.IsSuccessStatusCode)
+                {
+                    var stats = await resp.Content.ReadFromJsonAsync<PlatformStats>();
+                    ViewBag.Stats = stats;
+                }
+            }
+            catch { /* Stats are best-effort; silently fail */ }
             return View();
+        }
+
+        private class PlatformStats
+        {
+            public int UserCount { get; set; }
+            public int CompanyCount { get; set; }
+            public int OppCount { get; set; }
+            public int ActiveConnections { get; set; }
         }
 
         public IActionResult Privacy()

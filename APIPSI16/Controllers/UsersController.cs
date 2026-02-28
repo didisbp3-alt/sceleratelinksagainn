@@ -261,7 +261,7 @@ namespace APIPSI16.Controllers
         // POST: api/Users/me/request-employer – user uploads documents to request employer role
         [HttpPost("me/request-employer")]
         [SwaggerFileUpload]
-        public async Task<IActionResult> RequestEmployerRole(IFormFile? document)
+        public async Task<IActionResult> RequestEmployerRole(IFormFile? document, [FromForm] int? companyId = null)
         {
             var uid = GetCurrentUserId();
             if (uid == null) return Unauthorized();
@@ -278,6 +278,24 @@ namespace APIPSI16.Controllers
 
             // Set pending employer status: Role = 3 means "Pending Employer"
             user.Role = 3;
+
+            // Optionally join the company as pending member
+            if (companyId.HasValue)
+            {
+                var alreadyMember = await _context.CompanyMembers
+                    .AnyAsync(m => m.CompanyId == companyId.Value && m.UserId == uid.Value);
+                if (!alreadyMember)
+                {
+                    _context.CompanyMembers.Add(new CompanyMember
+                    {
+                        CompanyId = companyId.Value,
+                        UserId = uid.Value,
+                        Role = 0, // 0 = pending, 1 = member, 2 = admin
+                        StartDate = DateOnly.FromDateTime(DateTime.UtcNow)
+                    });
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             await _context.AuditLogs.AddAsync(new AuditLog
@@ -336,7 +354,7 @@ namespace APIPSI16.Controllers
         [HttpGet("network")]
         public async Task<IActionResult> GetNetworkUsers([FromQuery] string? search = null)
         {
-            IQueryable<User> q = _context.Users;
+            IQueryable<User> q = _context.Users.Where(u => u.Role != 0); // exclude admins
 
             if (!string.IsNullOrWhiteSpace(search))
                 q = q.Where(u => (u.Name ?? "").Contains(search) || (u.ProfileBio ?? "").Contains(search));
@@ -480,5 +498,42 @@ namespace APIPSI16.Controllers
         {
             return User.FindFirst(ClaimTypes.Role)?.Value;
         }
+        // GET: api/users/lookups/nationalities
+        [HttpGet("lookups/nationalities")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetNationalities()
+        {
+            var list = await _context.Nationalities
+                .OrderBy(n => n.Name)
+                .Select(n => new { n.NationalityId, n.Name })
+                .ToListAsync();
+            return Ok(list);
+        }
+
+        // GET: api/users/lookups/jobroles
+        [HttpGet("lookups/jobroles")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetJobRoles()
+        {
+            var list = await _context.JobRoles
+                .OrderBy(j => j.Name)
+                .Select(j => new { j.JobRoleId, j.Name })
+                .ToListAsync();
+            return Ok(list);
+        }
+
+        // GET: api/users/stats – real-time platform stats
+        [HttpGet("stats")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStats()
+        {
+            var userCount = await _context.Users.CountAsync(u => u.Role != 0);
+            var companyCount = await _context.Companies.CountAsync();
+            var oppCount = await _context.Opportunities.CountAsync();
+            var activeConnections = await _context.Connections.CountAsync(c => c.Status == 1);
+            return Ok(new { userCount, companyCount, oppCount, activeConnections });
+        }
+
+
     }
 }
