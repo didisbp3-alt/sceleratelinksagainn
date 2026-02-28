@@ -12,5 +12,6 @@ namespace APIPSI16.Models.DTOs
         public string? PhoneNumber { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public int? Role { get; set; }
+        public string? BannerUrl { get; set; }
     }
 }

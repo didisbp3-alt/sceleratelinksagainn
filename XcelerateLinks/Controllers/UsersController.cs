@@ -17,7 +17,7 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
-        // LIST users
+        // ADMIN LIST - all users with filter
         public async Task<IActionResult> Index(int? jobPreference = null, int? nationality = null)
         {
             if (!await ValidateSessionAsync())
@@ -47,22 +47,64 @@ namespace XcelerateLinks.Mvc.Controllers
             return View(model);
         }
 
-        // USER DETAILS
+        // USER-FACING: Network/People discovery page
+        public async Task<IActionResult> Network(string? search = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var resp = await client.GetAsync("api/users");
+
+            IEnumerable<UserDTO> users = Array.Empty<UserDTO>();
+            if (resp.IsSuccessStatusCode)
+            {
+                users = await resp.Content.ReadFromJsonAsync<IEnumerable<UserDTO>>() ?? Array.Empty<UserDTO>();
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                users = users.Where(u =>
+                    (u.Name ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    (u.ProfileBio ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
+            }
+
+            ViewBag.Search = search;
+            return View(users);
+        }
+
+        // USER DETAILS / PUBLIC PROFILE
         public async Task<IActionResult> Details(int id)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
 
             var client = CreateAuthorizedClient();
-            var resp = await client.GetAsync($"api/users/{id}");
+            var resp = await client.GetAsync($"api/users/{id}/profile");
             if (!resp.IsSuccessStatusCode)
             {
-                return RedirectToAction(nameof(Index));
+                var basicResp = await client.GetAsync($"api/users/{id}");
+                if (!basicResp.IsSuccessStatusCode)
+                    return RedirectToAction(nameof(Network));
+
+                var basicUser = await basicResp.Content.ReadFromJsonAsync<UserDTO>();
+                if (basicUser == null) return RedirectToAction(nameof(Network));
+                var basicProfile = new UserProfileDTO
+                {
+                    UserId = basicUser.UserId,
+                    Name = basicUser.Name,
+                    Email = basicUser.Email,
+                    PhoneNumber = basicUser.PhoneNumber,
+                    ProfileBio = basicUser.ProfileBio,
+                    ProfilePictureUrl = basicUser.ProfilePictureUrl,
+                    BannerUrl = basicUser.BannerUrl
+                };
+                return View(basicProfile);
             }
 
-            var user = await resp.Content.ReadFromJsonAsync<UserDTO>();
-            if (user == null) return RedirectToAction(nameof(Index));
-            return View(user);
+            var profile = await resp.Content.ReadFromJsonAsync<UserProfileDTO>();
+            if (profile == null) return RedirectToAction(nameof(Network));
+            return View(profile);
         }
 
         // CURRENT PROFILE REDIRECT
@@ -73,11 +115,9 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var userId = GetCurrentUserId();
             if (!userId.HasValue)
-            {
-                return RedirectToAction(nameof(Index));
-            }
+                return RedirectToAction(nameof(Network));
 
-            return RedirectToAction(nameof(Edit), new { id = userId.Value });
+            return RedirectToAction(nameof(Details), new { id = userId.Value });
         }
 
         // EDIT USER GET
@@ -90,12 +130,10 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/users/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
-                return RedirectToAction(nameof(Index));
-            }
+                return RedirectToAction(nameof(Network));
 
             var user = await resp.Content.ReadFromJsonAsync<UserDTO>();
-            if (user == null) return RedirectToAction(nameof(Index));
+            if (user == null) return RedirectToAction(nameof(Network));
             return View(user);
         }
 
@@ -107,7 +145,7 @@ namespace XcelerateLinks.Mvc.Controllers
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
 
-            if (id != model.UserId) return RedirectToAction(nameof(Index));
+            if (id != model.UserId) return RedirectToAction(nameof(Network));
             if (!ModelState.IsValid) return View(model);
 
             var client = CreateAuthorizedClient();

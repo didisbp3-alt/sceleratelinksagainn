@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Início";
 }
 
@@ -15,8 +15,8 @@
                 <div class="hero-actions">
                     @if (User?.Identity?.IsAuthenticated == true)
                     {
-                        <a href="/Opportunities" class="btn-primary">Explorar Oportunidades</a>
-                        <a href="/Users" class="btn-secondary">Ver Talentos</a>
+                        <a href="/Opportunities/Browse" class="btn-primary">Explorar Oportunidades</a>
+                        <a href="/Users/Network" class="btn-secondary">Ver Talentos</a>
                     }
                     else
                     {

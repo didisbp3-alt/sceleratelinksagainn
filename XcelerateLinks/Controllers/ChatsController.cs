@@ -16,6 +16,7 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
+        // ADMIN index - table view
         public async Task<IActionResult> Index()
         {
             if (!await ValidateSessionAsync())
@@ -33,6 +34,17 @@ namespace XcelerateLinks.Mvc.Controllers
             return View(chats ?? Array.Empty<Chat>());
         }
 
+        // USER-FACING: full messaging page (conversations list + chat window with React)
+        public async Task<IActionResult> Messages(int? chatId = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            ViewBag.InitialChatId = chatId;
+            ViewBag.CurrentUserId = GetCurrentUserId();
+            return View();
+        }
+
         public async Task<IActionResult> Details(int id)
         {
             if (!await ValidateSessionAsync())
@@ -41,9 +53,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/chat/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var chat = await resp.Content.ReadFromJsonAsync<Chat>();
             if (chat == null) return RedirectToAction(nameof(Index));
@@ -58,9 +68,7 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var userId = GetCurrentUserId();
             if (!userId.HasValue)
-            {
-                return RedirectToAction(nameof(Index));
-            }
+                return RedirectToAction(nameof(Messages));
 
             return View(new Chat
             {
@@ -96,7 +104,8 @@ namespace XcelerateLinks.Mvc.Controllers
                 return View(model);
             }
 
-            return RedirectToAction(nameof(Index));
+            var created = await resp.Content.ReadFromJsonAsync<Chat>();
+            return RedirectToAction(nameof(Messages), new { chatId = created?.ChatId });
         }
 
         [HttpGet]
@@ -108,9 +117,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/chat/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var chat = await resp.Content.ReadFromJsonAsync<Chat>();
             if (chat == null) return RedirectToAction(nameof(Index));
@@ -127,9 +134,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.DeleteAsync($"api/chat/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Delete), new { id });
-            }
 
             return RedirectToAction(nameof(Index));
         }

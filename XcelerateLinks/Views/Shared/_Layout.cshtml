@@ -1,4 +1,4 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Identity
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 
@@ -55,7 +55,7 @@
                 @if (User?.Identity?.IsAuthenticated == true)
                 {
                     <div class="header-center">
-                        <form asp-controller="Opportunities" asp-action="Index" method="get" class="search-wrap">
+                        <form asp-controller="Opportunities" asp-action="Browse" method="get" class="search-wrap">
                             <input name="q" class="search-input" type="search"
                                    placeholder="Pesquisar oportunidades..." />
                             <button class="search-btn" type="submit">🔍</button>

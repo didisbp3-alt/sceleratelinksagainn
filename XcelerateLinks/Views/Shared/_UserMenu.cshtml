@@ -1,4 +1,4 @@
-﻿@using System.Security.Claims
+@using System.Security.Claims
 @using APIPSI16.Models.DTOs
 @inject XcelerateLinks.Mvc.Services.IUsersApiClient UsersApiClient
 @inject Microsoft.Extensions.Logging.ILoggerFactory LoggerFactory
@@ -81,12 +81,11 @@
             <li><hr class="dropdown-divider" /></li>
 
             <!-- navigation links pulled into the dropdown -->
-            <li><a class="dropdown-item" href="@Url.Action("Index", "Opportunities")"><span class="me-2">💼</span>Oportunidades</a></li>
+            <li><a class="dropdown-item" href="@Url.Action("Browse", "Opportunities")"><span class="me-2">💼</span>Oportunidades</a></li>
+            <li><a class="dropdown-item" href="@Url.Action("Network", "Users")"><span class="me-2">👥</span>Rede</a></li>
+            <li><a class="dropdown-item" href="@Url.Action("Messages", "Chats")"><span class="me-2">💬</span>Mensagens</a></li>
             <li><a class="dropdown-item" href="@Url.Action("Index", "Applications")"><span class="me-2">📝</span>Candidaturas</a></li>
             <li><a class="dropdown-item" href="@Url.Action("Index", "Companies")"><span class="me-2">🏢</span>Empresas</a></li>
-            <li><a class="dropdown-item" href="@Url.Action("Index", "Chats")"><span class="me-2">💬</span>Conversas</a></li>
-            <li><a class="dropdown-item" href="@Url.Action("Index", "Users")"><span class="me-2">👥</span>Utilizadores</a></li>
-            <li><a class="dropdown-item" href="@Url.Action("Index", "Booking")"><span class="me-2">📅</span>Minhas marcações</a></li>
 
             <li><hr class="dropdown-divider" /></li>
 

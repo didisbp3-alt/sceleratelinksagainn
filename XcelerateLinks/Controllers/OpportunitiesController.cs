@@ -16,6 +16,7 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
+        // ADMIN index - table view with management actions
         public async Task<IActionResult> Index()
         {
             if (!await ValidateSessionAsync())
@@ -33,6 +34,46 @@ namespace XcelerateLinks.Mvc.Controllers
             return View(opportunities ?? Array.Empty<Opportunity>());
         }
 
+        // USER-FACING job search page
+        public async Task<IActionResult> Browse(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var resp = await client.GetAsync("api/opportunities");
+            if (!resp.IsSuccessStatusCode)
+            {
+                ViewBag.Error = await SafeReadStringAsync(resp) ?? "Unable to load opportunities.";
+                return View(Array.Empty<Opportunity>());
+            }
+
+            IEnumerable<Opportunity> opportunities = await resp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>()
+                                                      ?? Array.Empty<Opportunity>();
+
+            if (!string.IsNullOrWhiteSpace(q))
+                opportunities = opportunities.Where(o =>
+                    (o.Title ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    (o.Location ?? "").Contains(q, StringComparison.OrdinalIgnoreCase));
+
+            if (!string.IsNullOrWhiteSpace(location))
+                opportunities = opportunities.Where(o =>
+                    (o.Location ?? "").Contains(location, StringComparison.OrdinalIgnoreCase));
+
+            if (employmentType.HasValue)
+                opportunities = opportunities.Where(o => o.EmploymentType == employmentType.Value);
+
+            if (remoteOption.HasValue)
+                opportunities = opportunities.Where(o => o.RemoteOption == remoteOption.Value);
+
+            ViewBag.Q = q;
+            ViewBag.Location = location;
+            ViewBag.EmploymentType = employmentType;
+            ViewBag.RemoteOption = remoteOption;
+
+            return View(opportunities);
+        }
+
         public async Task<IActionResult> Details(int id)
         {
             if (!await ValidateSessionAsync())
@@ -41,12 +82,10 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/opportunities/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
-                return RedirectToAction(nameof(Index));
-            }
+                return RedirectToAction(nameof(Browse));
 
             var opportunity = await resp.Content.ReadFromJsonAsync<Opportunity>();
-            if (opportunity == null) return RedirectToAction(nameof(Index));
+            if (opportunity == null) return RedirectToAction(nameof(Browse));
             return View(opportunity);
         }
 
@@ -59,9 +98,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var model = new Opportunity();
             var userId = GetCurrentUserId();
             if (userId.HasValue)
-            {
                 model.CreatorId = userId.Value;
-            }
             return View(model);
         }
 
@@ -73,7 +110,6 @@ namespace XcelerateLinks.Mvc.Controllers
                 return RedirectToAction("Login", "Account");
 
             if (!ModelState.IsValid) return View(model);
-
             model.CreatorId ??= GetCurrentUserId();
 
             var client = CreateAuthorizedClient();
@@ -96,9 +132,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/opportunities/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var opportunity = await resp.Content.ReadFromJsonAsync<Opportunity>();
             if (opportunity == null) return RedirectToAction(nameof(Index));
@@ -135,9 +169,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.GetAsync($"api/opportunities/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Index));
-            }
 
             var opportunity = await resp.Content.ReadFromJsonAsync<Opportunity>();
             if (opportunity == null) return RedirectToAction(nameof(Index));
@@ -154,9 +186,7 @@ namespace XcelerateLinks.Mvc.Controllers
             var client = CreateAuthorizedClient();
             var resp = await client.DeleteAsync($"api/opportunities/{id}");
             if (!resp.IsSuccessStatusCode)
-            {
                 return RedirectToAction(nameof(Delete), new { id });
-            }
 
             return RedirectToAction(nameof(Index));
         }

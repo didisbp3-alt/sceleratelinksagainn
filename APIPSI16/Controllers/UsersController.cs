@@ -100,7 +100,8 @@ namespace APIPSI16.Controllers
                     DoB = u.DoB,
                     PhoneNumber = u.PhoneNumber,
                     Role = u.Role,
-                    ProfilePictureUrl = u.ProfilePictureUrl
+                    ProfilePictureUrl = u.ProfilePictureUrl,
+                    BannerUrl = u.BannerUrl
                 })
                 .FirstOrDefaultAsync();
 
@@ -171,6 +172,7 @@ namespace APIPSI16.Controllers
                 ProfileBio = user.ProfileBio,
                 DoB = user.DoB,
                 ProfilePictureUrl = user.ProfilePictureUrl,
+                BannerUrl = user.BannerUrl,
                 Skills = skills,
                 Experiences = experiences,
                 Educations = educations
@@ -211,6 +213,43 @@ namespace APIPSI16.Controllers
                 await _context.SaveChangesAsync();
 
                 return Ok(new { success = true, fileUrl = fileUrl, message = "Profile picture uploaded successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = $"Error uploading file: {ex.Message}" });
+            }
+        }
+
+        // POST: api/Users/5/upload-banner
+        // Upload banner image for a user
+        [HttpPost("{id}/upload-banner")]
+        [SwaggerFileUpload]
+        public async Task<IActionResult> UploadBanner(int id, IFormFile file)
+        {
+            var currentUserId = GetCurrentUserId();
+            var userRole = GetCurrentUserRole();
+
+            if (userRole != "0" && currentUserId != id)
+                return Forbid();
+
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound();
+
+            if (!_fileStorage.ValidateImageFile(file, out var errorMessage))
+                return BadRequest(new { message = errorMessage });
+
+            try
+            {
+                if (!string.IsNullOrEmpty(user.BannerUrl))
+                {
+                    await _fileStorage.DeleteFileAsync(user.BannerUrl);
+                }
+
+                var fileUrl = await _fileStorage.SaveFileAsync(file, "banners");
+                user.BannerUrl = fileUrl;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, fileUrl = fileUrl, message = "Banner uploaded successfully" });
             }
             catch (Exception ex)
             {

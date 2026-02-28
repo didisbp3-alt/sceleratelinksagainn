@@ -6,7 +6,7 @@
     var displayName = Model?.Name ?? "Usuário";
     var avatarUrl = Model?.ProfilePictureUrl;
     // When you add a BannerUrl property to UserProfileDTO, update this line:
-    var bannerUrl = Model?.GetType().GetProperty("BannerUrl")?.GetValue(Model) as string; // safe dynamic access for now
+    var bannerUrl = Model?.BannerUrl;
     var location = ""; // add when you have a location property
     var currentUserId = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
     bool isOwner = false;
