@@ -64,51 +64,86 @@ namespace XcelerateLinks.Mvc.Controllers
         }
 
         [HttpGet]
-        public IActionResult Create()
-        {
-            if (!User.Identity?.IsAuthenticated ?? true)
-                return RedirectToAction("Login", "Account");
-
-            var userId = GetCurrentUserId();
-            if (!userId.HasValue)
-                return RedirectToAction(nameof(Messages));
-
-            return View(new Chat
-            {
-                CreatedByUserId = userId.Value,
-                CreatedAt = DateTime.UtcNow
-            });
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Chat model)
+        public async Task<IActionResult> Create(int? withUserId = null)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
 
-            if (!ModelState.IsValid) return View(model);
+            // Load user list so we can show a people-picker
+            var client = CreateAuthorizedClient();
+            var resp = await client.GetAsync("api/users/network");
+            var users = resp.IsSuccessStatusCode
+                ? await resp.Content.ReadFromJsonAsync<IEnumerable<APIPSI16.Models.DTOs.UserDTO>>() ?? Array.Empty<APIPSI16.Models.DTOs.UserDTO>()
+                : Array.Empty<APIPSI16.Models.DTOs.UserDTO>();
+
+            var myId = GetCurrentUserId();
+            users = users.Where(u => u.UserId != myId).ToArray();
+            ViewBag.Users = users;
+            ViewBag.PreselectedUserId = withUserId;
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(List<int> participantIds, string? chatName = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
 
             var userId = GetCurrentUserId();
-            if (!userId.HasValue)
+            if (!userId.HasValue) return RedirectToAction("Login", "Account");
+
+            if (participantIds == null || participantIds.Count == 0)
             {
-                ModelState.AddModelError("", "Unable to identify current user.");
-                return View(model);
+                ViewBag.Error = "Seleciona pelo menos um participante.";
+                // Re-load users
+                var client2 = CreateAuthorizedClient();
+                var resp2 = await client2.GetAsync("api/users/network");
+                var users2 = resp2.IsSuccessStatusCode
+                    ? await resp2.Content.ReadFromJsonAsync<IEnumerable<APIPSI16.Models.DTOs.UserDTO>>() ?? Array.Empty<APIPSI16.Models.DTOs.UserDTO>()
+                    : Array.Empty<APIPSI16.Models.DTOs.UserDTO>();
+                ViewBag.Users = users2.Where(u => u.UserId != userId).ToArray();
+                ViewBag.PreselectedUserId = (int?)null;
+                return View();
             }
 
-            model.CreatedByUserId = userId.Value;
-            model.CreatedAt ??= DateTime.UtcNow;
+            // Include the creator in participant list
+            if (!participantIds.Contains(userId.Value))
+                participantIds.Insert(0, userId.Value);
 
             var client = CreateAuthorizedClient();
-            var resp = await client.PostAsJsonAsync("api/chat", model);
-            if (!resp.IsSuccessStatusCode)
+
+            // Create the chat
+            var chat = new APIPSI16.Models.Chat
             {
-                ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to create chat.");
-                return View(model);
+                CreatedByUserId = userId.Value,
+                CreatedAt = DateTime.UtcNow,
+                Type = chatName ?? (participantIds.Count == 2 ? "Direct" : "Group")
+            };
+
+            var createResp = await client.PostAsJsonAsync("api/chat", chat);
+            if (!createResp.IsSuccessStatusCode)
+            {
+                ModelState.AddModelError("", "Não foi possível criar a conversa.");
+                return View();
             }
 
-            var created = await resp.Content.ReadFromJsonAsync<Chat>();
-            return RedirectToAction(nameof(Messages), new { chatId = created?.ChatId });
+            var created = await createResp.Content.ReadFromJsonAsync<APIPSI16.Models.Chat>();
+            if (created == null) return RedirectToAction(nameof(Messages));
+
+            // Add all participants
+            foreach (var pid in participantIds)
+            {
+                var cu = new APIPSI16.Models.ChatUser
+                {
+                    ChatId = created.ChatId,
+                    UserId = pid,
+                    JoinedAt = DateTime.UtcNow
+                };
+                await client.PostAsJsonAsync("api/chatusers", cu);
+            }
+
+            return RedirectToAction(nameof(Messages), new { chatId = created.ChatId });
         }
 
         [HttpGet]

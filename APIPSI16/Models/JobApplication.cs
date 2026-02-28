@@ -18,6 +18,14 @@ public partial class JobApplication
 
     public string? Name { get; set; }
 
+    // Extended application fields
+    public string? CoverLetter { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? LinkedInUrl { get; set; }
+    public string? PortfolioUrl { get; set; }
+    public int? YearsOfExperience { get; set; }
+    public bool? OpenToRemote { get; set; }
+
     public virtual Opportunity Opportunity { get; set; } = null!;
 
     public virtual User User { get; set; } = null!;

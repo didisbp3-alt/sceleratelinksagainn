@@ -42,7 +42,13 @@ namespace APIPSI16.Controllers
                 UserId = uid.Value,
                 Status = 0,
                 AppliedAt = DateTime.UtcNow,
-                Name = string.IsNullOrWhiteSpace(dto.Name) ? null : dto.Name
+                Name = string.IsNullOrWhiteSpace(dto.Name) ? null : dto.Name,
+                CoverLetter = dto.CoverLetter,
+                PhoneNumber = dto.PhoneNumber,
+                LinkedInUrl = dto.LinkedInUrl,
+                PortfolioUrl = dto.PortfolioUrl,
+                YearsOfExperience = dto.YearsOfExperience,
+                OpenToRemote = dto.OpenToRemote
             };
 
             await _db.JobApplications.AddAsync(app);

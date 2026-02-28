@@ -36,6 +36,10 @@
 </section>
 
 <section class="profile-container container">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success mt-3" style="animation:slideDown 0.3s ease both;">@TempData["SuccessMessage"]</div>
+    }
     <div class="profile-top">
         <div class="profile-card">
             <div class="profile-avatar">
@@ -85,9 +89,26 @@
             </div>
 
             <div class="profile-actions">
+                @{
+                    var viewerRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                    var isViewerAdmin = viewerRole == "0";
+                    var profileRole = Model?.Role ?? 1;
+                }
                 @if (isOwner)
                 {
                     <a class="btn btn-outline" href="@Url.Action("Edit", "Users", new { id = Model.UserId })">Editar Perfil</a>
+                    @if (profileRole == 1) // Regular user – show request button
+                    {
+                        <a class="btn btn-primary" href="@Url.Action("RequestEmployer", "Users")">🏢 Tornar-me Empregador</a>
+                    }
+                    else if (profileRole == 3) // Pending
+                    {
+                        <span class="btn btn-outline" style="opacity:0.6;cursor:default;">⏳ Pedido em análise</span>
+                    }
+                    else if (profileRole == 2)
+                    {
+                        <span class="btn btn-outline" style="border-color:#00DD55;color:#00DD55;cursor:default;">✓ Empregador</span>
+                    }
                 }
                 else
                 {
@@ -95,7 +116,19 @@
                         <input type="hidden" name="targetUserId" value="@Model.UserId" />
                         <button class="btn btn-primary" type="submit">Conectar</button>
                     </form>
-                    <a class="btn btn-outline" href="@Url.Action("Index", "Chats", new { userId = Model.UserId })">Enviar Mensagem</a>
+                    <a class="btn btn-outline" href="@Url.Action("Create", "Chats", new { withUserId = Model.UserId })">💬 Enviar Mensagem</a>
+
+                    @if (isViewerAdmin && profileRole == 3) // Admin can approve/reject
+                    {
+                        <form method="post" asp-action="ApproveEmployer" asp-route-id="@Model.UserId" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-success btn-sm">✓ Aprovar Empregador</button>
+                        </form>
+                        <form method="post" asp-action="RejectEmployer" asp-route-id="@Model.UserId" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-danger btn-sm">✗ Rejeitar</button>
+                        </form>
+                    }
                 }
             </div>
         </div>

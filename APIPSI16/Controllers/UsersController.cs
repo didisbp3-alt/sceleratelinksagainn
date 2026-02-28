@@ -173,6 +173,7 @@ namespace APIPSI16.Controllers
                 DoB = user.DoB,
                 ProfilePictureUrl = user.ProfilePictureUrl,
                 BannerUrl = user.BannerUrl,
+                Role = user.Role,
                 Skills = skills,
                 Experiences = experiences,
                 Educations = educations
@@ -255,6 +256,104 @@ namespace APIPSI16.Controllers
             {
                 return StatusCode(500, new { success = false, message = $"Error uploading file: {ex.Message}" });
             }
+        }
+
+        // POST: api/Users/me/request-employer – user uploads documents to request employer role
+        [HttpPost("me/request-employer")]
+        [SwaggerFileUpload]
+        public async Task<IActionResult> RequestEmployerRole(IFormFile? document)
+        {
+            var uid = GetCurrentUserId();
+            if (uid == null) return Unauthorized();
+
+            var user = await _context.Users.FindAsync(uid.Value);
+            if (user == null) return NotFound();
+
+            // Store doc if provided (accepts images and PDFs)
+            string? docUrl = null;
+            if (document != null && document.Length > 0 && document.Length <= 5 * 1024 * 1024)
+            {
+                docUrl = await _fileStorage.SaveFileAsync(document, "employer-requests");
+            }
+
+            // Set pending employer status: Role = 3 means "Pending Employer"
+            user.Role = 3;
+            await _context.SaveChangesAsync();
+
+            await _context.AuditLogs.AddAsync(new AuditLog
+            {
+                UserId = uid.Value,
+                Action = "RequestEmployerRole",
+                TargetType = "User",
+                TargetId = uid.Value,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Pedido submetido. Aguarda aprovação do administrador.", documentUrl = docUrl });
+        }
+
+        // POST: api/Users/{id}/approve-employer – admin/company-manager approves employer role
+        [HttpPost("{id}/approve-employer")]
+        [Authorize(Roles = "0,2")] // Admin or Employer
+        public async Task<IActionResult> ApproveEmployerRole(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound();
+
+            user.Role = 2; // Employer
+            await _context.SaveChangesAsync();
+
+            await _context.AuditLogs.AddAsync(new AuditLog
+            {
+                UserId = GetCurrentUserId() ?? 0,
+                Action = "ApproveEmployerRole",
+                TargetType = "User",
+                TargetId = id,
+                CreatedAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Utilizador aprovado como empregador." });
+        }
+
+        // POST: api/Users/{id}/reject-employer – admin can reject
+        [HttpPost("{id}/reject-employer")]
+        [Authorize(Roles = "0")]
+        public async Task<IActionResult> RejectEmployerRole(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound();
+
+            user.Role = 1; // Back to regular user
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Pedido de empregador rejeitado." });
+        }
+
+        // GET: api/Users/network – public user listing for the network/discovery page
+        // Available to all authenticated users; returns only non-sensitive fields
+        [HttpGet("network")]
+        public async Task<IActionResult> GetNetworkUsers([FromQuery] string? search = null)
+        {
+            IQueryable<User> q = _context.Users;
+
+            if (!string.IsNullOrWhiteSpace(search))
+                q = q.Where(u => (u.Name ?? "").Contains(search) || (u.ProfileBio ?? "").Contains(search));
+
+            var users = await q
+                .Select(u => new UserDTO
+                {
+                    UserId = u.UserId,
+                    Name = u.Name,
+                    ProfileBio = u.ProfileBio,
+                    ProfilePictureUrl = u.ProfilePictureUrl,
+                    BannerUrl = u.BannerUrl,
+                    Role = u.Role
+                })
+                .ToListAsync();
+
+            return Ok(users);
         }
 
         // GET: api/Users/me/companies – employer's company memberships

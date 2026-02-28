@@ -76,7 +76,7 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var model = new JobApplicationCreateViewModel
             {
-                Application = new JobApplication { OpportunityId = opportunityId ?? 0 }
+                Application = new JobApplicationData { OpportunityId = opportunityId ?? 0 }
             };
 
             if (opportunityId.HasValue)
@@ -110,7 +110,16 @@ namespace XcelerateLinks.Mvc.Controllers
                 return View(model);
             }
 
-            var payload = new { OpportunityId = model.Application.OpportunityId, Name = model.Application.Name };
+            var payload = new APIPSI16.Models.DTOs.ApplyDto {
+                OpportunityId = model.Application.OpportunityId,
+                Name = model.Application.Name,
+                CoverLetter = model.Application.CoverLetter,
+                PhoneNumber = model.Application.PhoneNumber,
+                LinkedInUrl = model.Application.LinkedInUrl,
+                PortfolioUrl = model.Application.PortfolioUrl,
+                YearsOfExperience = model.Application.YearsOfExperience,
+                OpenToRemote = model.Application.OpenToRemote
+            };
 
             var client = CreateAuthorizedClient();
             var resp = await client.PostAsJsonAsync("api/jobapplications/apply", payload);
@@ -213,8 +222,20 @@ namespace XcelerateLinks.Mvc.Controllers
 
         public class JobApplicationCreateViewModel
         {
-            public JobApplication Application { get; set; } = new JobApplication();
+            public JobApplicationData Application { get; set; } = new JobApplicationData();
             public IEnumerable<Opportunity> Opportunities { get; set; } = Array.Empty<Opportunity>();
+        }
+
+        public class JobApplicationData
+        {
+            public int OpportunityId { get; set; }
+            public string? Name { get; set; }
+            public string? CoverLetter { get; set; }
+            public string? PhoneNumber { get; set; }
+            public string? LinkedInUrl { get; set; }
+            public string? PortfolioUrl { get; set; }
+            public int? YearsOfExperience { get; set; }
+            public bool? OpenToRemote { get; set; }
         }
     }
 }

@@ -50,16 +50,17 @@ namespace XcelerateLinks.Mvc.Controllers
                 return View(model);
             }
 
-            // Regular user → network/people discovery
-            var usersResp = await client.GetAsync("api/users");
+            // Regular user → network/people discovery (uses /api/users/network – no admin required)
+            var networkUrl = string.IsNullOrWhiteSpace(search)
+                ? "api/users/network"
+                : $"api/users/network?search={Uri.EscapeDataString(search)}";
+
+            var usersResp = await client.GetAsync(networkUrl);
             IEnumerable<UserDTO> users = Array.Empty<UserDTO>();
             if (usersResp.IsSuccessStatusCode)
                 users = await usersResp.Content.ReadFromJsonAsync<IEnumerable<UserDTO>>() ?? Array.Empty<UserDTO>();
-
-            if (!string.IsNullOrWhiteSpace(search))
-                users = users.Where(u =>
-                    (u.Name ?? "").Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (u.ProfileBio ?? "").Contains(search, StringComparison.OrdinalIgnoreCase));
+            else
+                ViewBag.Error = "Unable to load users.";
 
             ViewBag.Search = search;
             return View("UserIndex", users);
@@ -153,5 +154,81 @@ namespace XcelerateLinks.Mvc.Controllers
 
             return RedirectToAction(nameof(Details), new { id });
         }
+        // GET: show "become employer" form
+        [HttpGet]
+        public async Task<IActionResult> RequestEmployer()
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+            return View();
+        }
+
+        // POST: submit employer request with optional document
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RequestEmployer(IFormFile? document)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            HttpResponseMessage resp;
+
+            if (document != null && document.Length > 0)
+            {
+                using var form = new MultipartFormDataContent();
+                var stream = document.OpenReadStream();
+                form.Add(new StreamContent(stream), "document", document.FileName);
+                resp = await client.PostAsync("api/users/me/request-employer", form);
+            }
+            else
+            {
+                resp = await client.PostAsync("api/users/me/request-employer", null);
+            }
+
+            if (!resp.IsSuccessStatusCode)
+            {
+                ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to submit request.");
+                return View();
+            }
+
+            TempData["SuccessMessage"] = "Pedido submetido! O administrador irá analisar o teu pedido em breve.";
+            return RedirectToAction("Profile");
+        }
+
+        // POST: admin approves a user as employer
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApproveEmployer(int id)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var resp = await client.PostAsync($"api/users/{id}/approve-employer", null);
+
+            TempData["SuccessMessage"] = resp.IsSuccessStatusCode
+                ? "Utilizador aprovado como empregador."
+                : "Não foi possível aprovar o utilizador.";
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // POST: admin rejects employer request
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RejectEmployer(int id)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            await client.PostAsync($"api/users/{id}/reject-employer", null);
+
+            TempData["SuccessMessage"] = "Pedido rejeitado.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+
     }
 }

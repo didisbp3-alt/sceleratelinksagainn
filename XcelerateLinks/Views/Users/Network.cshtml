@@ -132,7 +132,7 @@
                                     <input type="hidden" name="targetUserId" value="@user.UserId" />
                                     <button type="submit" class="btn-connect w-100">+ Ligar</button>
                                 </form>
-                                <a asp-controller="Chats" asp-action="Messages" asp-route-userId="@user.UserId" class="btn-message">💬 Mensagem</a>
+                                <a asp-controller="Chats" asp-action="Create" asp-route-withUserId="@user.UserId" class="btn-message">💬 Mensagem</a>
                             }
                             else
                             {

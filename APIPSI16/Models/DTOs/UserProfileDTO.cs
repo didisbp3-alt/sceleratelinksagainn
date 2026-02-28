@@ -15,6 +15,7 @@ namespace APIPSI16.Models.DTOs
         public DateOnly? DoB { get; set; }
         public string? ProfilePictureUrl { get; set; }
         public string? BannerUrl { get; set; }
+        public int? Role { get; set; }
         
         public List<SkillDTO>? Skills { get; set; }
         public List<ProfileExperienceDTO>? Experiences { get; set; }

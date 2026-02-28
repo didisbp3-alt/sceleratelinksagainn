@@ -1114,3 +1114,135 @@ body.light-theme .footer-bottom {
         gap: 0.5rem;
     }
 }
+
+/* ====================================
+   ANIMATIONS
+==================================== */
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+/* Page entrance animations */
+.container > h1:first-child,
+.container > h2:first-child {
+    animation: slideDown 0.3s ease both;
+}
+
+/* Card animations – staggered via nth-child */
+.person-card { animation: fadeUp 0.4s ease both; }
+.person-card:nth-child(2)  { animation-delay: 0.05s; }
+.person-card:nth-child(3)  { animation-delay: 0.10s; }
+.person-card:nth-child(4)  { animation-delay: 0.15s; }
+.person-card:nth-child(5)  { animation-delay: 0.20s; }
+.person-card:nth-child(6)  { animation-delay: 0.25s; }
+.person-card:nth-child(n+7) { animation-delay: 0.28s; }
+
+.job-card { animation: fadeUp 0.4s ease both; }
+.job-card:nth-child(2)  { animation-delay: 0.05s; }
+.job-card:nth-child(3)  { animation-delay: 0.10s; }
+.job-card:nth-child(4)  { animation-delay: 0.15s; }
+.job-card:nth-child(n+5) { animation-delay: 0.18s; }
+
+.app-card { animation: fadeUp 0.4s ease both; }
+.app-card:nth-child(2) { animation-delay: 0.06s; }
+.app-card:nth-child(3) { animation-delay: 0.12s; }
+.app-card:nth-child(n+4) { animation-delay: 0.16s; }
+
+/* Hero sections */
+.jobs-hero,
+.network-hero,
+.myjobs-hero,
+.companies-hero,
+.profile-banner {
+    animation: fadeUp 0.4s ease both;
+}
+
+/* Manage / form cards */
+.manage-header,
+.opp-form-card,
+.apply-form-card,
+.manage-section,
+.newchat-card,
+.employer-req-card {
+    animation: fadeUp 0.4s ease both;
+}
+
+/* Pipeline columns */
+.pipeline-column { animation: scaleIn 0.35s ease both; }
+.pipeline-column:nth-child(2) { animation-delay: 0.05s; }
+.pipeline-column:nth-child(3) { animation-delay: 0.10s; }
+.pipeline-column:nth-child(4) { animation-delay: 0.15s; }
+.pipeline-column:nth-child(n+5) { animation-delay: 0.18s; }
+
+/* Chat widget entrance */
+#chat-widget-root .cw-panel { animation: scaleIn 0.25s ease both; transform-origin: bottom right; }
+#chat-widget-root .cw-bubble { animation: scaleIn 0.3s ease both 0.5s; }
+
+/* Header entrance */
+.site-header { animation: slideDown 0.3s ease both; }
+
+/* Stat numbers count-up feel via scale */
+.stat-number { animation: scaleIn 0.4s ease both 0.2s; display: inline-block; }
+
+/* Hover pulse on action buttons */
+.btn-apply:hover,
+.btn-apply-lg:hover,
+.btn-save-opp:hover,
+.btn-submit-app:hover,
+.btn-req:hover,
+.btn-start:hover {
+    transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(0,82,204,0.35);
+}
+
+/* Smooth hover transitions on all cards */
+.person-card,
+.job-card,
+.app-card,
+.pipeline-app-card,
+.manage-section,
+.opp-form-card {
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.person-card:hover,
+.app-card:hover,
+.pipeline-app-card:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+}
+
+/* Floating chat bubble pulse when there are unread messages */
+.cw-bubble:has(.cw-unread-badge) {
+    animation: scaleIn 0.3s ease both, cwPulse 2.5s ease 1.5s infinite;
+}
+@keyframes cwPulse {
+    0%,100% { box-shadow: 0 4px 20px rgba(0,82,204,0.45); }
+    50%      { box-shadow: 0 4px 28px rgba(0,82,204,0.75); }
+}
+
+/* Progress step dots */
+.prog-step .prog-dot {
+    transition: border-color 0.25s, background 0.25s, transform 0.25s;
+}
+.prog-step.active .prog-dot { transform: scale(1.15); }
+
+/* Picker item selected animation */
+.picker-item.selected { transition: background 0.15s; }
+
+/* Page container fade-in */
+main > .container { animation: fadeUp 0.4s ease both; }
