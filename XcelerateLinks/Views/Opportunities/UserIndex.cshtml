@@ -123,7 +123,29 @@
         <div class="alert alert-warning">@ViewBag.Error</div>
     }
 
-    @{var list = Model.ToList();}
+    @{
+        var list = Model.ToList();
+        var recommended = ViewBag.RecommendedList as IEnumerable<APIPSI16.Models.Opportunity>;
+        var isRecommended = ViewBag.Recommended == true;
+    }
+
+    <!-- Tabs: Todas | Para Ti -->
+    <div style="display:flex;gap:0.25rem;margin-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <a href="@Url.Action("Index","Opportunities", new { q=ViewBag.Q, location=ViewBag.Location, employmentType=ViewBag.EmploymentType, remoteOption=ViewBag.RemoteOption })"
+           style="padding:0.5rem 1.25rem;font-size:0.88rem;font-weight:600;text-decoration:none;border-bottom:2px solid @(isRecommended ? "transparent" : "#0052CC");color:@(isRecommended ? "var(--dark-text-muted,#a8b2c1)" : "#4f8ef7");margin-bottom:-1px;">
+            Todas
+        </a>
+        <a href="@Url.Action("Index","Opportunities", new { q=ViewBag.Q, location=ViewBag.Location, recommended=true })"
+           style="padding:0.5rem 1.25rem;font-size:0.88rem;font-weight:600;text-decoration:none;border-bottom:2px solid @(isRecommended ? "#0052CC" : "transparent");color:@(isRecommended ? "#4f8ef7" : "var(--dark-text-muted,#a8b2c1)");margin-bottom:-1px;">
+            ⭐ Para Ti
+        </a>
+    </div>
+
+    @if (isRecommended && recommended != null)
+    {
+        list = recommended.ToList();
+    }
+
     <p class="results-count">@list.Count oportunidade(s) encontrada(s)</p>
 
     @if (!list.Any())

@@ -156,6 +156,52 @@ namespace XcelerateLinks.Mvc.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // Pipeline view for employer/admin
+        public async Task<IActionResult> Pipeline(int companyId, int? opportunityId = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            ViewBag.CompanyId = companyId;
+            ViewBag.OpportunityId = opportunityId;
+
+            // Load applications for this company (filter client-side from all)
+            IEnumerable<JobApplication> apps = Array.Empty<JobApplication>();
+            var allResp = await client.GetAsync("api/jobapplications");
+            if (allResp.IsSuccessStatusCode)
+            {
+                var all = await allResp.Content.ReadFromJsonAsync<IEnumerable<JobApplication>>();
+                if (all != null)
+                {
+                    apps = all;
+                    if (opportunityId.HasValue)
+                        apps = apps.Where(a => a.OpportunityId == opportunityId.Value);
+                }
+            }
+
+            ViewBag.Applications = apps.ToList();
+            return View("Pipeline");
+        }
+
+        // POST: update application status (employer only)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateStatus(int id, byte newStatus, int? returnCompanyId = null)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var payload = new { NewStatus = newStatus };
+            var resp = await client.PostAsJsonAsync($"api/jobapplications/{id}/status", payload);
+
+            if (returnCompanyId.HasValue)
+                return RedirectToAction("Pipeline", "Applications", new { companyId = returnCompanyId.Value });
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
         private async Task<IEnumerable<Opportunity>> LoadOpportunitiesAsync()
         {
             var client = CreateAuthorizedClient();

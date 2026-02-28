@@ -36,6 +36,18 @@ namespace XcelerateLinks.Mvc.Controllers
             if (IsAdmin())
                 return View(companies);
 
+            // For employers: load their companies for the "Gerir" banner
+            var isEmployer = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "2";
+            if (isEmployer)
+            {
+                var myCompResp = await client.GetAsync("api/users/me/companies");
+                if (myCompResp.IsSuccessStatusCode)
+                {
+                    var myComps = await myCompResp.Content.ReadFromJsonAsync<IEnumerable<dynamic>>();
+                    ViewBag.MyCompanies = myComps;
+                }
+            }
+
             // User: optionally filter by search
             if (!string.IsNullOrWhiteSpace(search))
                 companies = companies.Where(c =>
@@ -149,6 +161,34 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var company = await resp.Content.ReadFromJsonAsync<Company>();
             if (company == null) return RedirectToAction(nameof(Index));
+            return View(company);
+        }
+
+        // Employer/Admin company management dashboard
+        public async Task<IActionResult> Manage(int id)
+        {
+            if (!await ValidateSessionAsync())
+                return RedirectToAction("Login", "Account");
+
+            var client = CreateAuthorizedClient();
+            var compResp = await client.GetAsync($"api/companies/{id}");
+            if (!compResp.IsSuccessStatusCode)
+                return RedirectToAction(nameof(Index));
+
+            var company = await compResp.Content.ReadFromJsonAsync<APIPSI16.Models.Company>();
+            if (company == null) return RedirectToAction(nameof(Index));
+
+            // Load opportunities for this company
+            var oppsResp = await client.GetAsync("api/opportunities");
+            IEnumerable<APIPSI16.Models.Opportunity> companyOpps = Array.Empty<APIPSI16.Models.Opportunity>();
+            if (oppsResp.IsSuccessStatusCode)
+            {
+                var all = await oppsResp.Content.ReadFromJsonAsync<IEnumerable<APIPSI16.Models.Opportunity>>();
+                companyOpps = all?.Where(o => o.CompanyId == id) ?? Array.Empty<APIPSI16.Models.Opportunity>();
+            }
+
+            ViewBag.Company = company;
+            ViewBag.CompanyOpportunities = companyOpps.ToList();
             return View(company);
         }
 

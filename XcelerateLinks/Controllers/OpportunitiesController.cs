@@ -16,8 +16,8 @@ namespace XcelerateLinks.Mvc.Controllers
             _logger = logger;
         }
 
-        // Role-dispatched: admin → Index (table), user → UserIndex (job search)
-        public async Task<IActionResult> Index(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
+        // Role-dispatched: admin → Index (table), user/employer → UserIndex (job search)
+        public async Task<IActionResult> Index(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null, bool recommended = false)
         {
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
@@ -36,7 +36,7 @@ namespace XcelerateLinks.Mvc.Controllers
             if (IsAdmin())
                 return View(opportunities);
 
-            // User: apply filters
+            // User / employer: apply filters
             if (!string.IsNullOrWhiteSpace(q))
                 opportunities = opportunities.Where(o =>
                     (o.Title ?? "").Contains(q, StringComparison.OrdinalIgnoreCase) ||
@@ -52,15 +52,25 @@ namespace XcelerateLinks.Mvc.Controllers
             if (remoteOption.HasValue)
                 opportunities = opportunities.Where(o => o.RemoteOption == remoteOption.Value);
 
+            // Load recommended if requested
+            IEnumerable<Opportunity>? recommendedOpps = null;
+            if (recommended)
+            {
+                var recResp = await client.GetAsync("api/opportunities/recommended");
+                if (recResp.IsSuccessStatusCode)
+                    recommendedOpps = await recResp.Content.ReadFromJsonAsync<IEnumerable<Opportunity>>() ?? Array.Empty<Opportunity>();
+            }
+
             ViewBag.Q = q;
             ViewBag.Location = location;
             ViewBag.EmploymentType = employmentType;
             ViewBag.RemoteOption = remoteOption;
+            ViewBag.Recommended = recommended;
+            ViewBag.RecommendedList = recommendedOpps;
 
             return View("UserIndex", opportunities);
         }
 
-        // Keep Browse as alias (used in existing nav links)
         public async Task<IActionResult> Browse(string? q = null, string? location = null, byte? employmentType = null, byte? remoteOption = null)
             => await Index(q, location, employmentType, remoteOption);
 
@@ -89,6 +99,8 @@ namespace XcelerateLinks.Mvc.Controllers
             var userId = GetCurrentUserId();
             if (userId.HasValue)
                 model.CreatorId = userId.Value;
+
+            await LoadDropdownsAsync();
             return View(model);
         }
 
@@ -99,7 +111,11 @@ namespace XcelerateLinks.Mvc.Controllers
             if (!await ValidateSessionAsync())
                 return RedirectToAction("Login", "Account");
 
-            if (!ModelState.IsValid) return View(model);
+            if (!ModelState.IsValid)
+            {
+                await LoadDropdownsAsync();
+                return View(model);
+            }
             model.CreatorId ??= GetCurrentUserId();
 
             var client = CreateAuthorizedClient();
@@ -107,6 +123,7 @@ namespace XcelerateLinks.Mvc.Controllers
             if (!resp.IsSuccessStatusCode)
             {
                 ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to create opportunity.");
+                await LoadDropdownsAsync();
                 return View(model);
             }
 
@@ -126,6 +143,8 @@ namespace XcelerateLinks.Mvc.Controllers
 
             var opportunity = await resp.Content.ReadFromJsonAsync<Opportunity>();
             if (opportunity == null) return RedirectToAction(nameof(Index));
+
+            await LoadDropdownsAsync();
             return View(opportunity);
         }
 
@@ -137,13 +156,18 @@ namespace XcelerateLinks.Mvc.Controllers
                 return RedirectToAction("Login", "Account");
 
             if (id != model.Id) return RedirectToAction(nameof(Index));
-            if (!ModelState.IsValid) return View(model);
+            if (!ModelState.IsValid)
+            {
+                await LoadDropdownsAsync();
+                return View(model);
+            }
 
             var client = CreateAuthorizedClient();
             var resp = await client.PutAsJsonAsync($"api/opportunities/{id}", model);
             if (!resp.IsSuccessStatusCode)
             {
                 ModelState.AddModelError("", await SafeReadStringAsync(resp) ?? "Unable to update opportunity.");
+                await LoadDropdownsAsync();
                 return View(model);
             }
 
@@ -180,5 +204,60 @@ namespace XcelerateLinks.Mvc.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // Helper: load companies + users for dropdowns; for employers, restrict to their companies
+        private async Task LoadDropdownsAsync()
+        {
+            var client = CreateAuthorizedClient();
+            var isEmployer = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value == "2";
+
+            // Companies
+            if (isEmployer)
+            {
+                var myCompResp = await client.GetAsync("api/users/me/companies");
+                if (myCompResp.IsSuccessStatusCode)
+                {
+                    var list = await myCompResp.Content.ReadFromJsonAsync<IEnumerable<CompanyDropItem>>();
+                    ViewBag.Companies = list ?? Array.Empty<CompanyDropItem>();
+                    ViewBag.IsEmployer = true;
+                }
+                else
+                {
+                    ViewBag.Companies = Array.Empty<CompanyDropItem>();
+                    ViewBag.IsEmployer = true;
+                }
+            }
+            else
+            {
+                var compResp = await client.GetAsync("api/companies");
+                if (compResp.IsSuccessStatusCode)
+                {
+                    var companies = await compResp.Content.ReadFromJsonAsync<IEnumerable<Company>>();
+                    ViewBag.Companies = companies?.Select(c => new CompanyDropItem { CompanyId = c.CompanyId, CompanyName = c.Name })
+                                         ?? Array.Empty<CompanyDropItem>();
+                }
+                else
+                {
+                    ViewBag.Companies = Array.Empty<CompanyDropItem>();
+                }
+            }
+
+            // Users (for CreatorId dropdown – admin only)
+            if (IsAdmin())
+            {
+                var usersResp = await client.GetAsync("api/users");
+                if (usersResp.IsSuccessStatusCode)
+                {
+                    var users = await usersResp.Content.ReadFromJsonAsync<IEnumerable<APIPSI16.Models.DTOs.UserDTO>>();
+                    ViewBag.Users = users ?? Array.Empty<APIPSI16.Models.DTOs.UserDTO>();
+                }
+                else
+                {
+                    ViewBag.Users = Array.Empty<APIPSI16.Models.DTOs.UserDTO>();
+                }
+            }
+        }
+
+        public record CompanyDropItem(int CompanyId = 0, string? CompanyName = null);
     }
 }

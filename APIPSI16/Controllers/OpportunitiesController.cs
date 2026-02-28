@@ -19,6 +19,31 @@ namespace APIPSI16.Controllers
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
 
+        // GET: api/Opportunities/recommended  – personalised for current user
+        [HttpGet("recommended")]
+        public async Task<IActionResult> GetRecommended()
+        {
+            var uid = GetCurrentUserId();
+            if (uid == null) return Unauthorized();
+
+            var user = await _context.Users.FindAsync(uid.Value);
+            if (user == null) return NotFound();
+
+            var q = _context.Opportunities.Include(o => o.Company).AsQueryable();
+
+            // Match on EmploymentType or SeniorityLevel based on user's job preference
+            if (user.JobPreference.HasValue)
+                q = q.Where(o => o.EmploymentType == (byte?)user.JobPreference.Value);
+
+            var results = await q.Select(o => new
+            {
+                o.Id, o.Title, o.Location, o.EmploymentType, o.SeniorityLevel, o.RemoteOption,
+                o.CompanyId, CompanyName = o.Company != null ? o.Company.Name : null
+            }).ToListAsync();
+
+            return Ok(results);
+        }
+
         // GET: api/Opportunities
         // All authenticated users can view opportunities
         [HttpGet]

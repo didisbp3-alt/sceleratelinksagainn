@@ -4,11 +4,7 @@
     var initialChatId = ViewBag.InitialChatId?.ToString() ?? "null";
 }
 
-@section Head {
-    <!-- React + Babel via CDN for the chat widget -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-}
+
 
 <style>
     /* Full-page messaging layout */
@@ -139,7 +135,6 @@
 <div id="messages-app" class="messages-page"></div>
 
 @section Scripts {
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
 <script>
 // ============================================================
 //  XcelerateLinks Chat App – React component

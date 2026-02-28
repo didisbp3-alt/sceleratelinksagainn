@@ -257,6 +257,28 @@ namespace APIPSI16.Controllers
             }
         }
 
+        // GET: api/Users/me/companies – employer's company memberships
+        [HttpGet("me/companies")]
+        public async Task<IActionResult> GetMyCompanies()
+        {
+            var uid = GetCurrentUserId();
+            if (uid == null) return Unauthorized();
+
+            var memberships = await _context.CompanyMembers
+                .Where(cm => cm.UserId == uid.Value)
+                .Include(cm => cm.Company)
+                .Select(cm => new
+                {
+                    cm.CompanyId,
+                    CompanyName = cm.Company.Name,
+                    cm.Title,
+                    cm.Role
+                })
+                .ToListAsync();
+
+            return Ok(memberships);
+        }
+
         // POST: api/Users
         // Only admins can create users via this endpoint.
         // (Self-registration should be done through /api/Auth/register)
