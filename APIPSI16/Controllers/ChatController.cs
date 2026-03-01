@@ -158,40 +158,63 @@ namespace APIPSI16.Controllers
         }
 
         // GET: api/Chat/conversations
-        // Get chat list with unread counts for current user
+        // Get chat list with unread counts for current user.
+        // For Direct chats, ChatName = the OTHER participant's name.
         [HttpGet("conversations")]
         public async Task<IActionResult> GetConversations()
         {
             var currentUserId = GetCurrentUserId();
             if (!currentUserId.HasValue) return Unauthorized();
 
-            var chats = await _context.ChatUsers
+            // Load raw data first
+            var chatMemberships = await _context.ChatUsers
                 .Where(cu => cu.UserId == currentUserId.Value)
                 .Include(cu => cu.Chat)
-                .ThenInclude(c => c.ChatMessages)
-                .ThenInclude(cm => cm.SenderUser)
-                .Select(cu => new ChatListDTO
-                {
-                    ChatId = cu.ChatId,
-                    ChatName = cu.Chat.Type, // Use Type as ChatName
-                    UnreadCount = cu.Chat.ChatMessages.Count(cm => 
-                        cm.SenderUserId != currentUserId.Value && cm.ReadAt == null),
-                    LastMessage = cu.Chat.ChatMessages
-                        .OrderByDescending(cm => cm.CreatedAt)
-                        .Select(cm => new ChatMessageDTO
-                        {
-                            MessageId = cm.MessageId,
-                            ChatId = cm.ChatId,
-                            SenderUserId = cm.SenderUserId,
-                            SenderName = cm.SenderUser.Name,
-                            MessageText = cm.MessageText,
-                            CreatedAt = cm.CreatedAt
-                        })
-                        .FirstOrDefault()
-                })
+                    .ThenInclude(c => c.ChatMessages)
+                        .ThenInclude(cm => cm.SenderUser)
+                .Include(cu => cu.Chat)
+                    .ThenInclude(c => c.ChatUsers)
+                        .ThenInclude(cu2 => cu2.User)
                 .ToListAsync();
 
-            return Ok(chats);
+            var result = chatMemberships.Select(cu =>
+            {
+                // For Direct chats, name = other participant's name
+                string chatName;
+                if (cu.Chat.Type == "Direct")
+                {
+                    var other = cu.Chat.ChatUsers
+                        .FirstOrDefault(x => x.UserId != currentUserId.Value);
+                    chatName = other?.User?.Name ?? "Mensagem Direta";
+                }
+                else
+                {
+                    chatName = cu.Chat.Type ?? "Grupo";
+                }
+
+                var lastMsg = cu.Chat.ChatMessages
+                    .OrderByDescending(cm => cm.CreatedAt)
+                    .FirstOrDefault();
+
+                return new ChatListDTO
+                {
+                    ChatId = cu.ChatId,
+                    ChatName = chatName,
+                    UnreadCount = cu.Chat.ChatMessages.Count(cm =>
+                        cm.SenderUserId != currentUserId.Value && cm.ReadAt == null),
+                    LastMessage = lastMsg == null ? null : new ChatMessageDTO
+                    {
+                        MessageId = lastMsg.MessageId,
+                        ChatId = lastMsg.ChatId,
+                        SenderUserId = lastMsg.SenderUserId,
+                        SenderName = lastMsg.SenderUser?.Name,
+                        MessageText = lastMsg.MessageText,
+                        CreatedAt = lastMsg.CreatedAt
+                    }
+                };
+            }).ToList();
+
+            return Ok(result);
         }
 
         // POST: api/Chat
@@ -208,7 +231,8 @@ namespace APIPSI16.Controllers
         }
 
         // POST: api/Chat/with-participants
-        // Creates a chat and adds all participants atomically (creator + others)
+        // Creates a chat and adds all participants atomically (creator + others).
+        // For Direct chats (2 participants), returns existing chat if one already exists.
         [HttpPost("with-participants")]
         public async Task<IActionResult> CreateChatWithParticipants([FromBody] CreateChatWithParticipantsDto dto)
         {
@@ -222,11 +246,36 @@ namespace APIPSI16.Controllers
             if (!dto.ParticipantIds.Contains(currentUserId.Value))
                 dto.ParticipantIds.Insert(0, currentUserId.Value);
 
+            var isDirect = dto.ParticipantIds.Count == 2;
+
+            // Dedup: for Direct chats, return existing one if present (single query)
+            if (isDirect)
+            {
+                var uid1 = dto.ParticipantIds[0];
+                var uid2 = dto.ParticipantIds[1];
+
+                // Load all direct chats that uid1 is part of, including ChatUsers
+                var candidates = await _context.ChatUsers
+                    .Where(cu => cu.UserId == uid1)
+                    .Select(cu => cu.ChatId)
+                    .ToListAsync();
+
+                var existing = await _context.Chats
+                    .Where(c => c.Type == "Direct" && candidates.Contains(c.ChatId))
+                    .Include(c => c.ChatUsers)
+                    .FirstOrDefaultAsync(c =>
+                        c.ChatUsers.Count == 2 &&
+                        c.ChatUsers.Any(cu => cu.UserId == uid2));
+
+                if (existing != null)
+                    return Ok(existing); // 200, not 201 – client navigates to existing chat
+            }
+
             var chat = new Chat
             {
                 CreatedByUserId = currentUserId.Value,
                 CreatedAt = DateTime.UtcNow,
-                Type = dto.ChatName ?? (dto.ParticipantIds.Count == 2 ? "Direct" : "Group")
+                Type = dto.ChatName ?? (isDirect ? "Direct" : "Group")
             };
 
             _context.Chats.Add(chat);

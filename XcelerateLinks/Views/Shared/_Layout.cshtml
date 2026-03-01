@@ -79,17 +79,19 @@
                         }
 
                         <button id="themeToggle" class="btn-ghost">🌙</button>
+                        <button id="langToggle" class="btn-ghost" title="Switch language">🌐 PT</button>
 
                         <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
-                            <button type="submit" class="btn-cta">Sair</button>
+                            <button type="submit" class="btn-cta" data-i18n="Sair">Sair</button>
                         </form>
                     }
                     else
                     {
                         <button id="themeToggle" class="btn-ghost">🌙</button>
-                        <a class="btn-ghost" asp-controller="Account" asp-action="Login">Entrar</a>
-                        <a class="btn-cta" asp-controller="Account" asp-action="Register">Criar Conta</a>
+                        <button id="langToggle" class="btn-ghost" title="Switch language">🌐 PT</button>
+                        <a class="btn-ghost" asp-controller="Account" asp-action="Login" data-i18n="Entrar">Entrar</a>
+                        <a class="btn-cta" asp-controller="Account" asp-action="Register" data-i18n="Criar Conta">Criar Conta</a>
                     }
                 </div>
             </div>
@@ -104,25 +106,25 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h4>Sobre</h4>
+                    <h4 data-i18n="Sobre">Sobre</h4>
                     <a href="#" class="footer-link">Sobre nós</a>
                     <a href="#" class="footer-link">Blog</a>
                     <a href="#" class="footer-link">Carreiras</a>
                 </div>
                 <div class="footer-section">
-                    <h4>Recursos</h4>
+                    <h4 data-i18n="Recursos">Recursos</h4>
                     <a href="#" class="footer-link">Documentação</a>
                     <a href="#" class="footer-link">Suporte</a>
                     <a href="#" class="footer-link">FAQ</a>
                 </div>
                 <div class="footer-section">
-                    <h4>Legal</h4>
-                    <a asp-controller="Home" asp-action="Privacy" class="footer-link">Privacidade</a>
+                    <h4 data-i18n="Legal">Legal</h4>
+                    <a asp-controller="Home" asp-action="Privacy" class="footer-link" data-i18n="Privacidade">Privacidade</a>
                     <a href="#" class="footer-link">Termos</a>
                     <a href="#" class="footer-link">Contacto</a>
                 </div>
                 <div class="footer-section">
-                    <h4>Segue-nos</h4>
+                    <h4 data-i18n="Segue-nos">Segue-nos</h4>
                     <a href="#" class="footer-link">Twitter</a>
                     <a href="#" class="footer-link">LinkedIn</a>
                     <a href="#" class="footer-link">GitHub</a>
@@ -156,6 +158,28 @@
             const currentTheme = body.classList.contains('dark-theme') ? 'dark' : 'light';
             setTheme(currentTheme === 'dark' ? 'light' : 'dark');
         });
+    </script>
+    <script src="~/js/i18n.js" asp-append-version="true"></script>
+    <script>
+    // Language toggle
+    (function() {
+        var langBtn = document.getElementById('langToggle');
+        // There may be two buttons (auth/non-auth), grab all
+        var langBtns = document.querySelectorAll('#langToggle');
+        var currentLang = localStorage.getItem('siteLang') || 'pt';
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('siteLang', lang);
+            if (window.XcelerateI18n) window.XcelerateI18n.apply(lang);
+            langBtns.forEach(function(b) { b.textContent = '🌐 ' + lang.toUpperCase(); });
+        }
+        setLang(currentLang);
+        langBtns.forEach(function(b) {
+            b.addEventListener('click', function() {
+                setLang(currentLang === 'pt' ? 'en' : 'pt');
+            });
+        });
+    })();
     </script>
 <script>
 (function() {
